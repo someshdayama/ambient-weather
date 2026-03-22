@@ -100,7 +100,7 @@ const Dashboard = ({ weatherData, unit }) => {
                 >
                     {/* Air Quality (Featured large item) */}
                     <MetricCard title="Air Quality" icon={Activity} delay={0.1}>
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
                                 <div style={{ fontSize: '3rem', fontWeight: 700, letterSpacing: '-2px', textShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                                     {weatherData.aqi != null ? Math.round(weatherData.aqi) : '--'}
@@ -178,7 +178,7 @@ const Dashboard = ({ weatherData, unit }) => {
 
                     {/* Humidity */}
                     <MetricCard title="Humidity" icon={Droplet} delay={0.3}>
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
                             <div style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-1px', marginBottom: 'auto' }}>
                                 {weatherData.current.relative_humidity_2m}<span style={{fontSize: '1.2rem', opacity: 0.7}}>%</span>
                             </div>
@@ -201,7 +201,7 @@ const Dashboard = ({ weatherData, unit }) => {
 
                     {/* UV Index */}
                     <MetricCard title="UV Index" icon={Sun} delay={0.4}>
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: 'auto' }}>
                                 <div style={{ fontSize: '2.5rem', fontWeight: 700 }}>{Math.round(uvIndex)}</div>
                                 <div style={{ fontSize: '1rem', fontWeight: 500, opacity: 0.8, background: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '12px' }}>
@@ -230,7 +230,7 @@ const Dashboard = ({ weatherData, unit }) => {
 
                     {/* Feels Like */}
                     <MetricCard title="Feels Like" icon={Thermometer} delay={0.5}>
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
                             <div style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-1px', marginBottom: 'auto' }}>
                                 {unit === 'F' ? Math.round((weatherData.current.apparent_temperature * 9 / 5) + 32) : Math.round(weatherData.current.apparent_temperature)}°
                             </div>
@@ -253,7 +253,7 @@ const Dashboard = ({ weatherData, unit }) => {
 
                     {/* Chance of Rain */}
                     <MetricCard title="Chance of Rain" icon={Umbrella} delay={0.6}>
-                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
                             <div style={{ fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-1px', marginBottom: 'auto' }}>
                                 {weatherData.daily.precipitation_probability_max[0]}<span style={{fontSize: '1.2rem', opacity: 0.7}}>%</span>
                             </div>
