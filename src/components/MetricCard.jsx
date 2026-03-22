@@ -8,7 +8,7 @@ const MetricCard = ({ title, icon: Icon, children, delay = 0 }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.5, type: 'spring', stiffness: 100 }}
             whileHover={{ y: -5, scale: 1.02 }}
-            className="glass-panel"
+            className="glass-panel metric-card"
             style={{ 
                 padding: '1.5rem', 
                 minHeight: '180px',
