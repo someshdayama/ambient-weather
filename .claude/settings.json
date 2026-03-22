@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run preview)",
+      "Bash(npx vite)"
+    ],
+    "deny": [
+      "Bash(rm -rf)",
+      "Bash(sudo *)"
+    ]
+  },
+  "model": {
+    "default": "claude-sonnet-4-20250514"
+  }
+}

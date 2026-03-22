@@ -1,0 +1,212 @@
+:root {
+    --bg-color: #f3f6f8;
+    --sidebar-bg: #4c8ae6;
+    --text-primary: #1c1e21;
+    --text-secondary: #717375;
+    --card-bg: #ffffff;
+    --border-radius: 28px;
+    --divider-color: #eeeeee;
+}
+
+[data-theme='dark'] {
+    --bg-color: #121212;
+    --sidebar-bg: #4c8ae6;
+    /* keeping sidebar the same since it has its own logic */
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --card-bg: #1e1e1e;
+    --divider-color: #333333;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-primary);
+    background-color: var(--bg-color);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#root {
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--card-bg);
+    display: flex;
+    overflow: hidden;
+}
+
+.loader-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: var(--sidebar-bg);
+}
+
+.error-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: #ff4757;
+}
+
+/* Scrollbar styling for dashboard */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade {
+    animation: fadeIn 0.8s ease forwards;
+}
+
+/* =========================================
+   Base Layout Classes (Desktop)
+   ========================================= */
+.sidebar {
+    width: 320px;
+    min-width: 320px;
+    height: 100%;
+}
+
+.dashboard-container {
+    flex: 1;
+    padding: 3rem 4rem;
+    overflow-y: auto;
+    height: 100%;
+}
+
+/* =========================================
+   Responsive Mobile & Tablet Adjustments 
+   ========================================= */
+@media (max-width: 900px) {
+    #root {
+        flex-direction: column;
+        /* Stack Sidebar on top of Dashboard */
+        overflow-y: auto;
+        /* Allow full page scrolling on mobile */
+        height: auto;
+    }
+
+    body {
+        align-items: flex-start;
+        /* Stop centering vertically on mobile */
+    }
+
+    .sidebar {
+        width: 100% !important;
+        min-width: 100% !important;
+        position: relative;
+        /* Increase padding on mobile to ensure content isn't cramped */
+        padding: 3rem 2rem !important;
+        /* Let it grow instead of locking height */
+        height: auto;
+        min-height: auto;
+    }
+
+    .dashboard-container {
+        padding: 2rem 1.5rem !important;
+        /* Tighter padding for mobile screens */
+        overflow: visible;
+        /* Let the parent root scroll it */
+        height: auto;
+    }
+
+    /* Fix: Wrap sidebar controls to prevent overlap */
+    .sidebar-controls {
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .sidebar-controls > div:first-child {
+        /* Search bar takes full width on mobile */
+        flex: 1 1 100% !important;
+        margin-right: 0 !important;
+    }
+
+    .sidebar-controls > div:last-child {
+        /* Toggles row centered below search */
+        width: 100%;
+        justify-content: center !important;
+    }
+
+    /* Fix: Reposition sun arc and labels for mobile */
+    .sun-arc {
+        position: relative !important;
+        right: auto !important;
+        top: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        height: 100px !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 1rem;
+        padding: 0 1rem;
+    }
+
+    .sun-arc svg {
+        position: absolute !important;
+        transform: rotate(90deg) !important;
+        width: 200px !important;
+        height: 50px !important;
+        z-index: 1;
+    }
+
+    .sun-label-top, .sun-label-bottom {
+        position: relative !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        width: 80px !important;
+        text-align: center !important;
+        z-index: 5;
+    }
+
+    .sun-label-top {
+        order: 1;
+        margin-right: auto;
+    }
+
+    .sun-label-bottom {
+        order: 3;
+        margin-left: auto;
+    }
+}
