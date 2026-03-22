@@ -1,212 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 :root {
-    --bg-color: #f3f6f8;
-    --sidebar-bg: #4c8ae6;
-    --text-primary: #1c1e21;
-    --text-secondary: #717375;
-    --card-bg: #ffffff;
-    --border-radius: 28px;
-    --divider-color: #eeeeee;
+  /* Dynamic Backgrounds */
+  --bg-gradient-day: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+  --bg-gradient-night: linear-gradient(135deg, #020617 0%, #061021 50%, #0b1524 100%);
+  
+  /* Light Theme Tokens */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --accent-color: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.4);
+  
+  --bg-current: var(--bg-gradient-day);
 }
 
 [data-theme='dark'] {
-    --bg-color: #121212;
-    --sidebar-bg: #4c8ae6;
-    /* keeping sidebar the same since it has its own logic */
-    --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
-    --card-bg: #1e1e1e;
-    --divider-color: #333333;
+  /* Dark Theme Tokens - Premium Deep aesthetic */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --glass-bg: rgba(3, 5, 8, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  --accent-color: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.2);
+  
+  --bg-current: var(--bg-gradient-night);
 }
 
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    transition: background-color 0.3s ease, color 0.3s ease;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    font-family: 'Outfit', sans-serif;
-    color: var(--text-primary);
-    background-color: var(--bg-color);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-primary);
+  /* The background changes dynamically based on weather/time, this is a fallback */
+  background: var(--bg-current);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  transition: color 0.5s ease;
 }
 
+/* Base App Layout */
 #root {
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--card-bg);
-    display: flex;
-    overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  position: relative;
+  z-index: 1;
 }
 
-.loader-container {
-    width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    color: var(--sidebar-bg);
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 32px;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.error-container {
-    width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    color: #ff4757;
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* Scrollbar styling for dashboard */
-::-webkit-scrollbar {
-    width: 6px;
+/* Utility classes */
+.flex-center { display: flex; justify-content: center; align-items: center; }
+.flex-col { display: flex; flex-direction: column; }
+.relative { position: relative; z-index: 1; }
+
+.text-gradient {
+  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-}
-
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-fade {
-    animation: fadeIn 0.8s ease forwards;
-}
-
-/* =========================================
-   Base Layout Classes (Desktop)
-   ========================================= */
-.sidebar {
-    width: 320px;
-    min-width: 320px;
-    height: 100%;
-}
-
+/* Dashboard Specific Layout */
 .dashboard-container {
-    flex: 1;
-    padding: 3rem 4rem;
-    overflow-y: auto;
-    height: 100%;
+  flex: 1;
+  padding: 2.5rem 3rem;
+  overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-border) transparent;
 }
 
-/* =========================================
-   Responsive Mobile & Tablet Adjustments 
-   ========================================= */
-@media (max-width: 900px) {
-    #root {
-        flex-direction: column;
-        /* Stack Sidebar on top of Dashboard */
-        overflow-y: auto;
-        /* Allow full page scrolling on mobile */
-        height: auto;
-    }
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
 
-    body {
-        align-items: flex-start;
-        /* Stop centering vertically on mobile */
-    }
+/* Loading & Error States */
+.loader-container, .error-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: var(--bg-current);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+}
 
-    .sidebar {
-        width: 100% !important;
-        min-width: 100% !important;
-        position: relative;
-        /* Increase padding on mobile to ensure content isn't cramped */
-        padding: 3rem 2rem !important;
-        /* Let it grow instead of locking height */
-        height: auto;
-        min-height: auto;
-    }
-
-    .dashboard-container {
-        padding: 2rem 1.5rem !important;
-        /* Tighter padding for mobile screens */
-        overflow: visible;
-        /* Let the parent root scroll it */
-        height: auto;
-    }
-
-    /* Fix: Wrap sidebar controls to prevent overlap */
-    .sidebar-controls {
-        flex-wrap: wrap !important;
-        gap: 12px !important;
-        margin-bottom: 1.5rem !important;
-    }
-
-    .sidebar-controls > div:first-child {
-        /* Search bar takes full width on mobile */
-        flex: 1 1 100% !important;
-        margin-right: 0 !important;
-    }
-
-    .sidebar-controls > div:last-child {
-        /* Toggles row centered below search */
-        width: 100%;
-        justify-content: center !important;
-    }
-
-    /* Fix: Reposition sun arc and labels for mobile */
-    .sun-arc {
-        position: relative !important;
-        right: auto !important;
-        top: auto !important;
-        transform: none !important;
-        width: 100% !important;
-        height: 100px !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 1rem;
-        padding: 0 1rem;
-    }
-
-    .sun-arc svg {
-        position: absolute !important;
-        transform: rotate(90deg) !important;
-        width: 200px !important;
-        height: 50px !important;
-        z-index: 1;
-    }
-
-    .sun-label-top, .sun-label-bottom {
-        position: relative !important;
-        right: auto !important;
-        top: auto !important;
-        bottom: auto !important;
-        width: 80px !important;
-        text-align: center !important;
-        z-index: 5;
-    }
-
-    .sun-label-top {
-        order: 1;
-        margin-right: auto;
-    }
-
-    .sun-label-bottom {
-        order: 3;
-        margin-left: auto;
-    }
+/* Responsive Overrides */
+@media (max-width: 1024px) {
+  #root {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  body {
+    align-items: flex-start;
+  }
+  .dashboard-container {
+    padding: 2rem 1.5rem;
+    overflow: visible;
+  }
 }

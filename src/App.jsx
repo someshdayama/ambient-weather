@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, MapPinOff } from 'lucide-react';
+import { Loader2, MapPinOff, Cloud } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import clsx from 'clsx';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import { fetchReverseGeocode, fetchWeatherByCoords } from './api/weatherApi';
@@ -22,15 +24,12 @@ function App() {
             let locName = name;
 
             if (!locName) {
-                // Fetch reverse geocoding from API service
                 locName = await fetchReverseGeocode(lat, lon);
             }
             setLocationName(locName);
 
-            // Fetch Open-Meteo data from API service
             const data = await fetchWeatherByCoords(lat, lon);
             setWeatherData(data);
-
         } catch (err) {
             setError(err.message || 'Failed to fetch weather data.');
         } finally {
@@ -38,12 +37,11 @@ function App() {
         }
     };
 
-    // Auto-refresh interval (15 minutes)
     useEffect(() => {
         const intervalId = setInterval(() => {
             if (currentLocation.current) {
                 const { lat, lon, name } = currentLocation.current;
-                fetchWeatherData(lat, lon, name, true); // silent refresh
+                fetchWeatherData(lat, lon, name, true);
             }
         }, 15 * 60 * 1000);
         return () => clearInterval(intervalId);
@@ -54,16 +52,32 @@ function App() {
     }, [theme]);
 
     useEffect(() => {
-        // Load Mumbai by default as requested
         fetchWeatherData(19.0760, 72.8777, 'Mumbai');
     }, []);
 
+    // Loader Animation
     if (loading) {
         return (
             <div className="loader-container">
-                <Loader2 size={40} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontWeight: 500 }}>Connecting to atmosphere...</p>
-                <style>{'@keyframes spin { 100% { transform: rotate(360deg); } }'}</style>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="flex-col flex-center"
+                    style={{ gap: '1.5rem' }}
+                >
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                        style={{ display: 'inline-block' }}
+                    >
+                        <Cloud size={64} style={{ fill: 'var(--accent-glow)' }} color="var(--accent-color)" strokeWidth={1.5} />
+                    </motion.div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 300, letterSpacing: '2px', opacity: 0.8 }}>
+                        Connecting to atmosphere...
+                    </h2>
+                </motion.div>
             </div>
         );
     }
@@ -71,19 +85,27 @@ function App() {
     if (error) {
         return (
             <div className="error-container">
-                <MapPinOff size={56} />
-                <p style={{ textAlign: 'center', maxWidth: '300px', fontWeight: 500 }}>{error}</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    style={{ marginTop: '1rem', padding: '0.75rem 1.5rem', background: '#4c8ae6', border: 'none', borderRadius: '12px', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass-panel"
+                    style={{ padding: '3rem', textAlign: 'center', maxWidth: '400px', margin: '0 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}
                 >
-                    Try Again
-                </button>
+                    <MapPinOff size={56} style={{ color: '#ef4444' }} />
+                    <h2 style={{ fontWeight: 600 }}>Location Error</h2>
+                    <p style={{ opacity: 0.8, fontSize: '1rem' }}>{error}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{ marginTop: '1rem', padding: '0.8rem 2rem', background: 'var(--accent-color)', border: 'none', borderRadius: '16px', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '1rem', transition: 'all 0.3s' }}
+                        onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+                        onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                    >
+                        Try Again
+                    </button>
+                </motion.div>
             </div>
         );
     }
-
-    if (!weatherData) return null;
 
     if (!weatherData) return null;
 
@@ -92,24 +114,32 @@ function App() {
     };
 
     return (
-        <>
-            <Sidebar
-                current={weatherData.current}
-                daily={weatherData.daily}
-                locationName={locationName}
-                timezone={weatherData.timezone}
-                unit={unit}
-                setUnit={setUnit}
-                theme={theme}
-                setTheme={setTheme}
-                onLocationSelect={handleLocationSelect}
-            />
-            <Dashboard
-                weatherData={weatherData}
-                unit={unit}
-                theme={theme}
-            />
-        </>
+        <AnimatePresence>
+            <motion.div
+                key="app"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8 }}
+                style={{ display: 'flex', width: '100%', height: '100%' }}
+            >
+                <Sidebar
+                    current={weatherData.current}
+                    daily={weatherData.daily}
+                    locationName={locationName}
+                    timezone={weatherData.timezone}
+                    unit={unit}
+                    setUnit={setUnit}
+                    theme={theme}
+                    setTheme={setTheme}
+                    onLocationSelect={handleLocationSelect}
+                />
+                <Dashboard
+                    weatherData={weatherData}
+                    unit={unit}
+                    theme={theme}
+                />
+            </motion.div>
+        </AnimatePresence>
     );
 }
 
