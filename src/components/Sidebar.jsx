@@ -116,8 +116,6 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
             className="sidebar"
             style={{
-                width: '380px',
-                minWidth: '380px',
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
