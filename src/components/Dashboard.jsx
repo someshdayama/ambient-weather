@@ -22,7 +22,7 @@ const getAqiData = (aqi) => {
     return { label: 'Hazardous', color: '#7c3aed', rangeIndex: aqiRanges.length - 1 };
 };
 
-const Dashboard = ({ weatherData, unit }) => {
+const Dashboard = ({ weatherData, unit, theme, onLocationSelect }) => {
     const aqiInfo = getAqiData(weatherData.aqi);
 
     // Wind Gauge Math
@@ -280,7 +280,7 @@ const Dashboard = ({ weatherData, unit }) => {
                 {/* Weather Map */}
                 <motion.div variants={itemVariants} style={{ width: '100%', marginTop: '2rem' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1rem', letterSpacing: '0.5px' }}>Location Map</h3>
-                    <WeatherMap lat={weatherData.latitude} lon={weatherData.longitude} theme={theme} />
+                    <WeatherMap lat={weatherData.latitude} lon={weatherData.longitude} theme={theme} onLocationSelect={onLocationSelect} />
                 </motion.div>
             </div>
         </div>

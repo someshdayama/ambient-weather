@@ -110,7 +110,7 @@ function App() {
     if (!weatherData) return null;
 
     const handleLocationSelect = (lat, lon, name) => {
-        fetchWeatherData(lat, lon, name);
+        fetchWeatherData(lat, lon, name, true); // silent = true to avoid full screen loader
     };
 
     return (
@@ -137,6 +137,7 @@ function App() {
                     weatherData={weatherData}
                     unit={unit}
                     theme={theme}
+                    onLocationSelect={handleLocationSelect}
                 />
             </motion.div>
         </AnimatePresence>
