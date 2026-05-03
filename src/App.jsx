@@ -120,7 +120,7 @@ function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8 }}
-                style={{ display: 'flex', width: '100%', height: '100%' }}
+                className="app-wrapper"
             >
                 <Sidebar
                     current={weatherData.current}
