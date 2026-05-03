@@ -97,12 +97,12 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                background: i === 0 ? 'rgba(59, 130, 246, 0.2)' : 'var(--glass-bg)',
-                                border: i === 0 ? '1px solid var(--accent-color)' : '1px solid var(--glass-border)',
+                                background: i === 0 ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.4) 0%, rgba(139, 92, 246, 0.4) 100%)' : 'var(--glass-bg)',
+                                border: i === 0 ? '1px solid rgba(139, 92, 246, 0.6)' : '1px solid var(--glass-border)',
                                 borderRadius: '40px',
                                 padding: '16px 8px',
                                 userSelect: 'none',
-                                boxShadow: i === 0 ? '0 0 20px var(--accent-glow)' : 'none'
+                                boxShadow: i === 0 ? '0 0 20px rgba(139, 92, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)' : 'none'
                             }}
                         >
                             <div style={{ fontSize: '1rem', fontWeight: 700, letterSpacing: '-0.5px' }}>

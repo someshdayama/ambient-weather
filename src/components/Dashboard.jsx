@@ -3,6 +3,7 @@ import { Droplet, Wind, Sun, Thermometer, Umbrella, Activity } from 'lucide-reac
 import { motion } from 'framer-motion';
 import HourlyChart from './HourlyChart';
 import MetricCard from './MetricCard';
+import WeatherMap from './WeatherMap';
 
 const aqiRanges = [
     { min: 0, max: 50, label: 'Very Good', color: '#10b981' }, // Emerald 500
@@ -274,6 +275,12 @@ const Dashboard = ({ weatherData, unit }) => {
                         </div>
                     </MetricCard>
 
+                </motion.div>
+
+                {/* Weather Map */}
+                <motion.div variants={itemVariants} style={{ width: '100%', marginTop: '2rem' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1rem', letterSpacing: '0.5px' }}>Location Map</h3>
+                    <WeatherMap lat={weatherData.latitude} lon={weatherData.longitude} theme={theme} />
                 </motion.div>
             </div>
         </div>

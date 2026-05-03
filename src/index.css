@@ -2,8 +2,8 @@
 
 :root {
   /* Dynamic Backgrounds */
-  --bg-gradient-day: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
-  --bg-gradient-night: linear-gradient(135deg, #020617 0%, #061021 50%, #0b1524 100%);
+  --bg-gradient-day: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 50%, #a1c4fd 100%);
+  --bg-gradient-night: linear-gradient(135deg, #020617 0%, #061021 50%, #020617 100%);
   
   /* Light Theme Tokens */
   --text-primary: #1e293b;
@@ -41,8 +41,8 @@ body {
   color: var(--text-primary);
   /* The background changes dynamically based on weather/time, this is a fallback */
   background: var(--bg-current);
-  background-size: cover;
-  background-position: center;
+  background-size: 200% 200%;
+  animation: ambient-drift 15s ease infinite;
   background-attachment: fixed;
   min-height: 100dvh;
   display: flex;
@@ -50,6 +50,12 @@ body {
   align-items: center;
   overflow: hidden;
   transition: color 0.5s ease;
+}
+
+@keyframes ambient-drift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Base App Layout */
@@ -73,7 +79,7 @@ body {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.15);
   border-radius: 32px;
   position: relative;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);

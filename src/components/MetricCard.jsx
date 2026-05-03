@@ -7,7 +7,7 @@ const MetricCard = ({ title, icon: Icon, children, delay = 0 }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.5, type: 'spring', stiffness: 100 }}
-            whileHover={{ y: -5, scale: 1.02 }}
+            whileHover={{ y: -5, scale: 1.02, boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.3), 0 0 20px var(--accent-glow)' }}
             className="glass-panel metric-card"
             style={{ 
                 padding: '1.5rem', 
