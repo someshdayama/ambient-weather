@@ -1,11 +1,10 @@
-import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Tooltip } from 'react-leaflet';
 import { motion } from 'framer-motion';
 import { LocateFixed } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
-
-// Fix for default marker icon in leaflet with bundlers
 import L from 'leaflet';
+
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -17,6 +16,17 @@ L.Icon.Default.mergeOptions({
     shadowUrl: markerShadow,
 });
 
+// Custom favorite star icon for Leaflet markers
+const favMarkerIcon = new L.Icon({
+    iconUrl: markerIcon,
+    iconRetinaUrl: markerIcon2x,
+    shadowUrl: markerShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+});
+
 const MapUpdater = ({ center }) => {
     const map = useMap();
     useEffect(() => {
@@ -25,31 +35,57 @@ const MapUpdater = ({ center }) => {
     return null;
 };
 
-const MapEvents = ({ onLocationSelect }) => {
+const MapEvents = ({ onClick }) => {
     useMapEvents({
         click(e) {
-            if (onLocationSelect) {
-                onLocationSelect(e.latlng.lat, e.latlng.lng, null);
+            if (onClick) {
+                onClick(e.latlng.lat, e.latlng.lng);
             }
         }
     });
     return null;
 };
 
-const WeatherMap = ({ lat, lon, theme, onLocationSelect }) => {
-    const center = [lat, lon];
+const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
+    const isLight = theme === 'light';
     
-    // Use CartoDB Light/Dark depending on theme for premium look
-    const tileUrl = theme === 'dark' 
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    // Manage active coords locally for instant flyTo feedback on map clicks
+    const [activeCoords, setActiveCoords] = useState([lat, lon]);
+
+    // Keep activeCoords in sync when parent coordinate changes (e.g. from GPS or search)
+    useEffect(() => {
+        setActiveCoords([lat, lon]);
+    }, [lat, lon]);
+
+    // Map style state
+    const [mapStyle, setMapStyle] = useState(theme === 'dark' ? 'dark' : 'light');
+    
+    // Sync style with main theme
+    useEffect(() => {
+        setMapStyle(theme === 'dark' ? 'dark' : 'light');
+    }, [theme]);
+
+    const mapStyleUrls = {
+        light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    };
+
+    const handleMapClick = (clickLat, clickLon) => {
+        setActiveCoords([clickLat, clickLon]);
+        if (onLocationSelect) {
+            onLocationSelect(clickLat, clickLon, null);
+        }
+    };
 
     const handleLocate = () => {
         if ('geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    setActiveCoords([latitude, longitude]);
                     if (onLocationSelect) {
-                        onLocationSelect(pos.coords.latitude, pos.coords.longitude, null);
+                        onLocationSelect(latitude, longitude, null);
                     }
                 },
                 (err) => {
@@ -57,8 +93,6 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect }) => {
                     alert('Unable to retrieve your location. Please check browser permissions.');
                 }
             );
-        } else {
-            alert('Geolocation is not supported by your browser.');
         }
     };
 
@@ -79,16 +113,85 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect }) => {
                 boxShadow: 'var(--glass-shadow)'
             }}
         >
-            <MapContainer center={center} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+            <MapContainer center={activeCoords} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
                 <TileLayer
-                    url={tileUrl}
+                    url={mapStyleUrls[mapStyle]}
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 />
-                <Marker position={center} />
-                <MapUpdater center={center} />
-                <MapEvents onLocationSelect={onLocationSelect} />
+
+                {/* Current Active Location Marker */}
+                <Marker position={activeCoords}>
+                    <Tooltip direction="top" offset={[0, -10]} opacity={0.95} permanent>
+                        <span style={{ fontWeight: 700, color: 'var(--accent-color)', fontFamily: 'Outfit, sans-serif' }}>📍 Active Location</span>
+                    </Tooltip>
+                </Marker>
+
+                {/* Favorite Cities Markers */}
+                {favorites.map((fav, i) => {
+                    const isCurrent = Math.abs(fav.lat - lat) < 0.01 && Math.abs(fav.lon - lon) < 0.01;
+                    if (isCurrent) return null;
+                    return (
+                        <Marker 
+                            key={`fav-${i}`} 
+                            position={[fav.lat, fav.lon]}
+                            icon={favMarkerIcon}
+                            eventHandlers={{
+                                click: () => {
+                                    if (onLocationSelect) onLocationSelect(fav.lat, fav.lon, fav.name);
+                                }
+                            }}
+                        >
+                            <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
+                                <span style={{ fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>🌟 {fav.name.split(',')[0]}</span>
+                            </Tooltip>
+                        </Marker>
+                    );
+                })}
+
+                <MapUpdater center={activeCoords} />
+                <MapEvents onClick={handleMapClick} />
             </MapContainer>
-            
+
+            {/* Float Style Selector (Top-Left) */}
+            <div style={{
+                position: 'absolute',
+                top: '15px',
+                left: '15px',
+                zIndex: 1000,
+                display: 'flex',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '14px',
+                padding: '3px',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+            }}>
+                {['light', 'dark', 'satellite'].map((style) => (
+                    <button
+                        key={style}
+                        onClick={() => setMapStyle(style)}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: mapStyle === style 
+                                ? (isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)') 
+                                : 'transparent',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            textTransform: 'capitalize',
+                            fontFamily: 'Outfit, sans-serif'
+                        }}
+                    >
+                        {style}
+                    </button>
+                ))}
+            </div>
+
+            {/* Locate button */}
             <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -99,14 +202,13 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect }) => {
                     bottom: '20px',
                     right: '20px',
                     zIndex: 1000,
-                    width: '44px',
-                    height: '44px',
+                    width: '40px',
+                    height: '40px',
                     borderRadius: '50%',
                     background: 'var(--glass-bg)',
                     backdropFilter: 'blur(10px)',
-                    WebkitBackdropFilter: 'blur(10px)',
                     border: '1px solid var(--glass-border)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -115,7 +217,7 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect }) => {
                     outline: 'none'
                 }}
             >
-                <LocateFixed size={20} />
+                <LocateFixed size={18} />
             </motion.button>
         </motion.div>
     );

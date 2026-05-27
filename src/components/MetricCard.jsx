@@ -1,38 +1,54 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 
-const MetricCard = ({ title, icon: Icon, children, delay = 0 }) => {
+const MetricCard = ({ title, icon: Icon, delay = 0, children, style = {} }) => {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay, duration: 0.5, type: 'spring', stiffness: 100 }}
-            whileHover={{ y: -5, scale: 1.02, boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.3), 0 0 20px var(--accent-glow)' }}
+            transition={{ delay, type: 'spring', stiffness: 120, damping: 18 }}
             className="glass-panel metric-card"
-            style={{ 
-                padding: '1.5rem', 
-                minHeight: '180px',
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'space-between',
-                cursor: 'default'
+            style={{
+                padding: '1.8rem',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: '200px',
+                ...style,
             }}
         >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.8, marginBottom: '1rem' }}>
-                <span style={{ fontSize: '1rem', fontWeight: 500 }}>{title}</span>
-                <div style={{ 
-                    background: 'var(--accent-glow)', 
-                    padding: '8px', 
-                    borderRadius: '12px',
+            {/* Card header */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '1.2rem',
+                opacity: 0.75,
+            }}>
+                <div style={{
+                    width: '30px',
+                    height: '30px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 0 15px var(--accent-glow)'
+                    background: 'var(--accent-glow)',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.1)',
                 }}>
-                    <Icon size={18} color="var(--accent-color)" />
+                    <Icon size={16} strokeWidth={2} color="var(--accent-color)" />
                 </div>
+                <span style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1.5px',
+                    color: 'var(--text-secondary)',
+                }}>
+                    {title}
+                </span>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+
+            {/* Card content */}
+            <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
                 {children}
             </div>
         </motion.div>
