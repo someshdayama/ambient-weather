@@ -19,71 +19,7 @@
   /* Fog */
   --bg-fog:          linear-gradient(160deg, #cbd5e1 0%, #94a3b8 40%, #64748b 100%);
 
-  /* Default tokens */
-  --text-primary:    #0f172a;
-  --text-secondary:  #475569;
-  --glass-bg:        rgba(255, 255, 255, 0.42);
-  --glass-border:    rgba(15, 23, 42, 0.08);
-  --glass-shadow:    0 10px 30px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
-  --glass-blur:      blur(20px);
-  --accent-color:    #2563eb;
-  --accent-glow:     rgba(37, 99, 235, 0.15);
-  --particle-color:  rgba(37, 99, 235, 0.25);
-
-  --bg-current: var(--bg-clear-day);
-}
-
-/* ─── Light Theme ────────────────────────────────────────────────────────────── */
-[data-theme='light'] {
-  --text-primary:    #0f172a;
-  --text-secondary:  #475569;
-  --glass-bg:        rgba(255, 255, 255, 0.42);
-  --glass-border:    rgba(15, 23, 42, 0.08);
-  --glass-shadow:    0 10px 30px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
-  --glass-blur:      blur(24px) saturate(160%);
-  --accent-color:    #2563eb;
-  --accent-glow:     rgba(37, 99, 235, 0.15);
-  --particle-color:  rgba(37, 99, 235, 0.25);
-
-  /* Premium Saturated Pastel Gradients */
-  --bg-clear-day:    linear-gradient(160deg, #ffedd5 0%, #fed7aa 25%, #bae6fd 60%, #7dd3fc 100%);
-  --bg-clear-night:  linear-gradient(160deg, #e0e7ff 0%, #c7d2fe 45%, #bae6fd 100%);
-  --bg-cloudy:       linear-gradient(160deg, #f1f5f9 0%, #cbd5e1 45%, #94a3b8 100%);
-  --bg-cloudy-night: linear-gradient(160deg, #cbd5e1 0%, #94a3b8 50%, #475569 100%);
-  --bg-rain:         linear-gradient(160deg, #e0f2fe 0%, #bae6fd 30%, #7dd3fc 65%, #38bdf8 100%);
-  --bg-storm:        linear-gradient(160deg, #e2e8f0 0%, #cbd5e1 30%, #c4b5fd 65%, #a78bfa 100%);
-  --bg-snow:         linear-gradient(160deg, #f0fdf4 0%, #ccfbf1 40%, #e0f2fe 100%);
-  --bg-fog:          linear-gradient(160deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
-
-  /* UI Styling variables */
-  --input-bg:        rgba(15, 23, 42, 0.04);
-  --input-border:    rgba(15, 23, 42, 0.08);
-  
-  --dropdown-bg:     rgba(255, 255, 255, 0.95);
-  --dropdown-border: rgba(15, 23, 42, 0.08);
-  --dropdown-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
-  --dropdown-hover-bg: rgba(37, 99, 235, 0.06);
-  --dropdown-text:   #1e293b;
-
-  --card-inner-bg:   rgba(15, 23, 42, 0.04);
-  --card-inner-border: rgba(15, 23, 42, 0.06);
-
-  --slider-bg:       rgba(255, 255, 255, 0.95);
-  --slider-border:   rgba(15, 23, 42, 0.06);
-  --slider-shadow:   0 2px 8px rgba(0, 0, 0, 0.08);
-
-  --sidebar-bg:      rgba(255, 255, 255, 0.42);
-  --sidebar-border:  1px solid rgba(15, 23, 42, 0.08);
-  --sidebar-shadow:  10px 0 40px rgba(15, 23, 42, 0.03);
-
-  --sun-arc-stroke:  rgba(15, 23, 42, 0.15);
-  --sun-orb-bg:      #fbbf24;
-  --sun-orb-shadow:  0 0 18px rgba(251,191,36,0.9), 0 0 36px rgba(251,191,36,0.4);
-  --chart-line-end:  #7c3aed;
-}
-
-/* ─── Dark Theme ─────────────────────────────────────────────────────────────── */
-[data-theme='dark'] {
+  /* Default tokens (Dark theme as global default) */
   --text-primary:    #f8fafc;
   --text-secondary:  #94a3b8;
   --glass-bg:        rgba(3, 7, 18, 0.6);
@@ -93,7 +29,8 @@
   --accent-color:    #60a5fa;
   --accent-glow:     rgba(96, 165, 250, 0.25);
   --particle-color:  rgba(148, 163, 184, 0.5);
-  --bg-current:      var(--bg-clear-night);
+
+  --bg-current: var(--bg-clear-night);
 
   /* UI Styling variables */
   --input-bg:        rgba(255, 255, 255, 0.12);
@@ -116,7 +53,7 @@
   --sidebar-border:  1px solid rgba(255, 255, 255, 0.08);
   --sidebar-shadow:  10px 0 40px rgba(0, 0, 0, 0.12);
 
-  --sun-arc-stroke:  rgba(255, 255, 255, 0.22);
+  --sun-arc-stroke:  rgba(255, 255, 255, 0.45);
   --sun-orb-bg:      #fbbf24;
   --sun-orb-shadow:  0 0 18px rgba(251,191,36,0.9), 0 0 36px rgba(251,191,36,0.4);
   --chart-line-end:  #c4b5fd;
@@ -132,24 +69,15 @@
 [data-weather='snow']         { --bg-current: var(--bg-snow); }
 [data-weather='fog']          { --bg-current: var(--bg-fog); }
 
-/* Theme-specific Weather Styling Overrides */
-[data-theme='light'][data-weather='clear-day']   { --accent-color: #d97706; --accent-glow: rgba(217, 119, 6, 0.15); }
-[data-theme='light'][data-weather='clear-night'] { --accent-color: #4f46e5; --accent-glow: rgba(79, 70, 229, 0.15); }
-[data-theme='light'][data-weather='cloudy']      { --accent-color: #475569; --accent-glow: rgba(71, 85, 105, 0.15); }
-[data-theme='light'][data-weather='cloudy-night']{ --accent-color: #334155; --accent-glow: rgba(51, 65, 85, 0.15); }
-[data-theme='light'][data-weather='rain']        { --accent-color: #1d4ed8; --accent-glow: rgba(29, 78, 216, 0.15); --particle-color: rgba(29, 78, 216, 0.2); }
-[data-theme='light'][data-weather='storm']       { --accent-color: #6d28d9; --accent-glow: rgba(109, 40, 217, 0.15); --particle-color: rgba(109, 40, 217, 0.25); }
-[data-theme='light'][data-weather='snow']        { --accent-color: #0369a1; --accent-glow: rgba(3, 105, 161, 0.15); }
-[data-theme='light'][data-weather='fog']         { --accent-color: #475569; --accent-glow: rgba(71, 85, 105, 0.15); }
-
-[data-theme='dark'][data-weather='clear-day']    { --accent-color: #fbbf24; --accent-glow: rgba(251, 191, 36, 0.25); }
-[data-theme='dark'][data-weather='clear-night']  { --accent-color: #818cf8; --accent-glow: rgba(129, 140, 248, 0.25); --particle-color: rgba(226, 232, 240, 0.4); }
-[data-theme='dark'][data-weather='cloudy']       { --accent-color: #94a3b8; --accent-glow: rgba(148, 163, 184, 0.25); }
-[data-theme='dark'][data-weather='cloudy-night'] { --accent-color: #94a3b8; --accent-glow: rgba(148, 163, 184, 0.25); }
-[data-theme='dark'][data-weather='rain']         { --accent-color: #60a5fa; --accent-glow: rgba(96, 165, 250, 0.25); --particle-color: rgba(147, 197, 253, 0.5); }
-[data-theme='dark'][data-weather='storm']        { --accent-color: #a78bfa; --accent-glow: rgba(167, 139, 250, 0.25); --particle-color: rgba(196, 181, 253, 0.4); }
-[data-theme='dark'][data-weather='snow']         { --accent-color: #38bdf8; --accent-glow: rgba(56, 189, 248, 0.25); }
-[data-theme='dark'][data-weather='fog']          { --accent-color: #cbd5e1; --accent-glow: rgba(203, 213, 225, 0.25); }
+/* Weather Accent-Color Overrides (Dark theme variables globally applied) */
+[data-weather='clear-day']    { --accent-color: #fbbf24; --accent-glow: rgba(251, 191, 36, 0.25); }
+[data-weather='clear-night']  { --accent-color: #818cf8; --accent-glow: rgba(129, 140, 248, 0.25); --particle-color: rgba(226, 232, 240, 0.4); }
+[data-weather='cloudy']       { --accent-color: #94a3b8; --accent-glow: rgba(148, 163, 184, 0.25); }
+[data-weather='cloudy-night'] { --accent-color: #94a3b8; --accent-glow: rgba(148, 163, 184, 0.25); }
+[data-weather='rain']         { --accent-color: #60a5fa; --accent-glow: rgba(96, 165, 250, 0.25); --particle-color: rgba(147, 197, 253, 0.5); }
+[data-weather='storm']        { --accent-color: #a78bfa; --accent-glow: rgba(167, 139, 250, 0.25); --particle-color: rgba(196, 181, 253, 0.4); }
+[data-weather='snow']         { --accent-color: #38bdf8; --accent-glow: rgba(56, 189, 248, 0.25); }
+[data-weather='fog']          { --accent-color: #cbd5e1; --accent-glow: rgba(203, 213, 225, 0.25); }
 
 /* ─── Reset & Base ───────────────────────────────────────────────────────────── */
 *, *::before, *::after {

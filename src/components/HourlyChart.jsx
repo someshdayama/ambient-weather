@@ -4,6 +4,20 @@ import { CloudRain, CloudSnow, Sun, CloudSun, Cloud, CloudDrizzle, CloudLightnin
 
 const WeatherIcons = { 0: Sun, 1: Sun, 2: CloudSun, 3: Cloud, 45: CloudFog, 48: CloudFog, 51: CloudDrizzle, 53: CloudDrizzle, 55: CloudDrizzle, 61: CloudRain, 63: CloudRain, 65: CloudRain, 71: CloudSnow, 73: CloudSnow, 75: CloudSnow, 80: CloudRain, 81: CloudRain, 82: CloudLightning, 95: CloudLightning, 96: CloudLightning, 99: CloudLightning };
 
+/** Parse timestamp to local date milliseconds */
+const parseTime = (s) => {
+    const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
+    return m ? new Date(m[1], m[2] - 1, m[3], m[4], m[5]).getTime() : new Date(s).getTime();
+};
+
+// SVG layout constants (defined outside component to avoid recreation)
+const W = 860;
+const H = 130;
+const PAD_X = 30;
+const PAD_Y = 20;
+const chartW = W - PAD_X * 2;
+const chartH = H - PAD_Y * 2;
+
 /** Smooth cubic bezier spline path from an array of [x, y] points */
 const smoothPath = (pts) => {
     if (pts.length < 2) return '';
@@ -22,58 +36,63 @@ const smoothPath = (pts) => {
     return d;
 };
 
-const HourlyChart = ({ hourlyData, unit, currentTime, theme }) => {
+const HourlyChart = ({ hourlyData, unit, currentTime }) => {
     const [tooltip, setTooltip] = useState(null);
-    const isLight = theme === 'light';
     const svgRef = useRef(null);
 
-    const parseTime = (s) => {
-        const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
-        return m ? new Date(m[1], m[2] - 1, m[3], m[4], m[5]).getTime() : new Date(s).getTime();
-    };
+    const toUnit = useCallback((c) => unit === 'F' ? Math.round((c * 9 / 5) + 32) : Math.round(c), [unit]);
 
-    const currentMs = parseTime(currentTime);
-    const currentIndex = hourlyData.time.findIndex(t => parseTime(t) > currentMs);
-    const startIndex = Math.max(0, currentIndex - 1);
+    const currentMs = useMemo(() => parseTime(currentTime), [currentTime]);
+    
+    const currentIndex = useMemo(() => {
+        if (!hourlyData?.time) return -1;
+        return hourlyData.time.findIndex(t => parseTime(t) > currentMs);
+    }, [hourlyData, currentMs]);
 
-    if (currentIndex === -1 || !hourlyData.time?.length) {
-        return <div style={{ opacity: 0.5, padding: '2rem', textAlign: 'center' }}>Forecast data unavailable</div>;
-    }
+    const startIndex = useMemo(() => Math.max(0, currentIndex - 1), [currentIndex]);
 
-    const HOURS = 24;
-    const slice = {
-        time:   hourlyData.time.slice(startIndex, startIndex + HOURS),
-        temp:   hourlyData.temperature_2m.slice(startIndex, startIndex + HOURS),
-        precip: hourlyData.precipitation_probability.slice(startIndex, startIndex + HOURS),
-        code:   hourlyData.weather_code ? hourlyData.weather_code.slice(startIndex, startIndex + HOURS) : [],
-    };
+    const slice = useMemo(() => {
+        if (currentIndex === -1 || !hourlyData?.time?.length) return null;
+        const HOURS = 24;
+        return {
+            time:   hourlyData.time.slice(startIndex, startIndex + HOURS),
+            temp:   hourlyData.temperature_2m.slice(startIndex, startIndex + HOURS),
+            precip: hourlyData.precipitation_probability.slice(startIndex, startIndex + HOURS),
+            code:   hourlyData.weather_code ? hourlyData.weather_code.slice(startIndex, startIndex + HOURS) : [],
+        };
+    }, [hourlyData, startIndex, currentIndex]);
 
-    const toUnit = (c) => unit === 'F' ? Math.round((c * 9 / 5) + 32) : Math.round(c);
-    const temps = slice.temp.map(toUnit);
+    const temps = useMemo(() => {
+        if (!slice) return [];
+        return slice.temp.map(toUnit);
+    }, [slice, toUnit]);
 
-    if (!temps.length) return null;
+    const bounds = useMemo(() => {
+        if (!temps.length) return { minT: 0, maxT: 0, range: 1 };
+        const minT = Math.min(...temps);
+        const maxT = Math.max(...temps);
+        const range = maxT - minT || 1;
+        return { minT, maxT, range };
+    }, [temps]);
 
-    // SVG layout
-    const W = 860;
-    const H = 130;
-    const PAD_X = 30;
-    const PAD_Y = 20;
-    const chartW = W - PAD_X * 2;
-    const chartH = H - PAD_Y * 2;
+    const points = useMemo(() => {
+        if (!temps.length) return [];
+        const { minT, range } = bounds;
+        return temps.map((t, i) => [
+            PAD_X + (i / (temps.length - 1)) * chartW,
+            PAD_Y + chartH - ((t - minT) / range) * chartH,
+        ]);
+    }, [temps, bounds]);
 
-    const minT = Math.min(...temps);
-    const maxT = Math.max(...temps);
-    const range = maxT - minT || 1;
-
-    const points = temps.map((t, i) => [
-        PAD_X + (i / (temps.length - 1)) * chartW,
-        PAD_Y + chartH - ((t - minT) / range) * chartH,
-    ]);
-
-    const linePath = smoothPath(points);
-    const areaPath = linePath + ` L ${points[points.length - 1][0]},${H} L ${PAD_X},${H} Z`;
+    const linePath = useMemo(() => smoothPath(points), [points]);
+    
+    const areaPath = useMemo(() => {
+        if (!points.length) return '';
+        return linePath + ` L ${points[points.length - 1][0]},${H} L ${PAD_X},${H} Z`;
+    }, [linePath, points]);
 
     const handleMouseMove = useCallback((e) => {
+        if (!slice || !points.length) return;
         const rect = svgRef.current?.getBoundingClientRect();
         if (!rect) return;
         const relX = e.clientX - rect.left;
@@ -93,6 +112,10 @@ const HourlyChart = ({ hourlyData, unit, currentTime, theme }) => {
     }, [temps, points, slice]);
 
     const handleMouseLeave = useCallback(() => setTooltip(null), []);
+
+    if (!slice) {
+        return <div style={{ opacity: 0.5, padding: '2rem', textAlign: 'center' }}>Forecast data unavailable</div>;
+    }
 
     return (
         <div style={{ position: 'relative', width: '100%' }}>
@@ -167,7 +190,7 @@ const HourlyChart = ({ hourlyData, unit, currentTime, theme }) => {
                             cy={y}
                             r="4"
                             fill="var(--accent-color)"
-                            stroke={isLight ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)"}
+                            stroke="rgba(255,255,255,0.6)"
                             strokeWidth="1.5"
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
@@ -200,7 +223,7 @@ const HourlyChart = ({ hourlyData, unit, currentTime, theme }) => {
                         <line
                             x1={tooltip.x} y1={PAD_Y}
                             x2={tooltip.x} y2={H}
-                            stroke={isLight ? "rgba(15, 23, 42, 0.18)" : "rgba(255,255,255,0.25)"}
+                            stroke="rgba(255,255,255,0.25)"
                             strokeWidth="1"
                             strokeDasharray="4 4"
                         />

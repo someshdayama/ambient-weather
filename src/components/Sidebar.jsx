@@ -8,17 +8,21 @@ import CurrentWeather from './CurrentWeather';
 
 const FAVORITES_KEY = 'ambient_weather_favorites';
 
-const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme, setTheme, onLocationSelect, onGpsRequest, loading, favorites = [], setFavorites }) => {
+const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, onLocationSelect, onGpsRequest, loading, favorites = [], setFavorites }) => {
     const [time, setTime] = useState(new Date());
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const searchRef = useRef(null);
+    const searchTimeoutRef = useRef(null);
 
     useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(timer);
+        const timer = setInterval(() => setTime(new Date()), 30000); // 30s interval
+        return () => {
+            clearInterval(timer);
+            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        };
     }, []);
 
     useEffect(() => {
@@ -29,16 +33,23 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleSearch = async (e) => {
+    const handleSearch = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
         if (query.trim().length > 2) {
-            setIsSearching(true);
-            try {
-                const results = await searchCity(query);
-                setSearchResults(results);
-            } catch { setSearchResults([]); }
-            finally { setIsSearching(false); }
+            searchTimeoutRef.current = setTimeout(async () => {
+                setIsSearching(true);
+                try {
+                    const results = await searchCity(query);
+                    setSearchResults(results);
+                } catch { setSearchResults([]); }
+                finally { setIsSearching(false); }
+            }, 300);
         } else {
             setSearchResults([]);
         }
@@ -75,7 +86,7 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
 
     const details = current ? getWeatherDetails(current.weather_code, current.is_day) : { theme: 'clear-night' };
     const isDay = current?.is_day === 1;
-    const showNightBg = theme === 'dark' || !isDay;
+    const showNightBg = !isDay;
 
     // Sun arc math
     const localTimeStr = time.toLocaleString('en-US', { timeZone: timezone });
@@ -104,10 +115,10 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
     }
     progress = Math.max(0, Math.min(1, progress));
     const angle = Math.PI - progress * Math.PI;
-    const sunX = 100 + 80 * Math.cos(angle);
-    const sunY = 90 - 80 * Math.sin(angle);
+    const sunX = 140 + 120 * Math.cos(angle);
+    const sunY = 80 - 60 * Math.sin(angle);
 
-    const isLight = theme === 'light';
+
 
     return (
         <motion.div
@@ -135,25 +146,7 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
                         <Navigation size={16} fill={isLocating ? 'currentColor' : 'none'} />
                     </button>
 
-                    {/* Animated theme toggle */}
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-                        className="theme-toggle-btn"
-                    >
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={theme}
-                                initial={{ y: -8, opacity: 0, rotate: -90 }}
-                                animate={{ y: 0, opacity: 1, rotate: 0 }}
-                                exit={{ y: 8, opacity: 0, rotate: 90 }}
-                                transition={{ duration: 0.18 }}
-                            >
-                                {theme === 'dark' ? <Moon size={17} fill="currentColor" /> : <Sun size={17} fill="currentColor" />}
-                            </motion.div>
-                        </AnimatePresence>
-                    </motion.button>
+
 
                     {/* Pill C/F toggle */}
                     <div className="unit-toggle">
@@ -264,20 +257,19 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
                     time={time}
                     timezone={timezone}
                     unit={unit}
-                    theme={theme}
                 />
             ) : null}
 
             {/* ── Sun/Moon Arc ── */}
-            <div className="sun-arc-horizontal" style={{ width: '100%', height: '130px', position: 'relative', marginTop: 'auto', marginBottom: '16px', zIndex: 15 }}>
-                <div style={{ position: 'absolute', bottom: '18px', left: '50%', transform: 'translateX(-50%)', width: '200px', height: '100px' }}>
-                    <svg width="200" height="100" viewBox="0 0 200 100" style={{ opacity: 0.8 }}>
-                        <path d="M 20 90 A 80 80 0 0 1 180 90" fill="none" stroke="url(#hg)" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 8" />
+            <div className="sun-arc-horizontal" style={{ width: '100%', height: '115px', position: 'relative', marginTop: 'auto', marginBottom: '16px', zIndex: 15, display: 'flex', justifyContent: 'center' }}>
+                <div style={{ width: '280px', height: '115px', position: 'relative' }}>
+                    <svg width="280" height="90" viewBox="0 0 280 90" style={{ opacity: 0.95, position: 'absolute', top: 0, left: 0 }}>
+                        <path d="M 20 80 A 120 60 0 0 1 260 80" fill="none" stroke="url(#hg)" strokeWidth="3.2" strokeLinecap="round" strokeDasharray="6 4" />
                         <defs>
                             <linearGradient id="hg" x1="0" y1="0" x2="1" y2="0">
-                                <stop offset="0%"   stopColor="transparent" />
-                                <stop offset="50%"  stopColor="var(--sun-arc-stroke)" />
-                                <stop offset="100%" stopColor="transparent" />
+                                <stop offset="0%"   stopColor="var(--sun-arc-stroke)" stopOpacity="0.15" />
+                                <stop offset="50%"  stopColor="var(--sun-arc-stroke)" stopOpacity="1.0" />
+                                <stop offset="100%" stopColor="var(--sun-arc-stroke)" stopOpacity="0.15" />
                             </linearGradient>
                         </defs>
                     </svg>
@@ -292,21 +284,24 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, theme,
                             : 'var(--sun-orb-shadow)',
                         transition: 'left 1s ease-out, top 1s ease-out',
                         willChange: 'transform',
+                        zIndex: 10
                     }}>
                         {isDaytime ? <Sun size={15} color="#92400e" fill="#92400e" /> : <Moon size={15} color="#334155" fill="#334155" />}
                     </div>
-                </div>
-                <div style={{ position: 'absolute', bottom: '0', left: '16px' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, color: 'var(--text-primary)' }}>{topLabel}</div>
-                    <div style={{ fontSize: '0.72rem', opacity: 0.55, color: 'var(--text-secondary)' }}>{topTime}</div>
-                </div>
-                <div style={{ position: 'absolute', bottom: '0', right: '16px', textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, color: 'var(--text-primary)' }}>{bottomLabel}</div>
-                    <div style={{ fontSize: '0.72rem', opacity: 0.55, color: 'var(--text-secondary)' }}>{bottomTime}</div>
+                    {/* Sunrise Label */}
+                    <div style={{ position: 'absolute', bottom: '0', left: '20px', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '70px' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, color: 'var(--text-primary)' }}>{topLabel}</div>
+                        <div style={{ fontSize: '0.72rem', opacity: 0.55, color: 'var(--text-secondary)' }}>{topTime}</div>
+                    </div>
+                    {/* Sunset Label */}
+                    <div style={{ position: 'absolute', bottom: '0', left: '260px', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '70px' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, color: 'var(--text-primary)' }}>{bottomLabel}</div>
+                        <div style={{ fontSize: '0.72rem', opacity: 0.55, color: 'var(--text-secondary)' }}>{bottomTime}</div>
+                    </div>
                 </div>
             </div>
 
-            <SkylineVector showNightBg={showNightBg} theme={theme} />
+            <SkylineVector showNightBg={showNightBg} />
         </motion.div>
     );
 };

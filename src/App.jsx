@@ -14,7 +14,6 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [unit, setUnit] = useState('C');
-    const [theme, setTheme] = useState('dark');
     const [favorites, setFavorites] = useState(() => {
         try { return JSON.parse(localStorage.getItem('ambient_weather_favorites')) || []; }
         catch { return []; }
@@ -49,10 +48,10 @@ function App() {
         return () => clearInterval(id);
     }, []);
 
-    // Theme attribute
+    // Set default dark theme attribute
     useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme);
-    }, [theme]);
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }, []);
 
     // Set weather-reactive background attribute
     useEffect(() => {
@@ -82,7 +81,7 @@ function App() {
 
     const weatherDetails = weatherData
         ? getWeatherDetails(weatherData.current.weather_code, weatherData.current.is_day)
-        : { theme: theme === 'dark' ? 'clear-night' : 'clear-day' };
+        : { theme: 'clear-night' };
 
     // ── Error state (non-blocking) ──────────────────────────────────────────────
     if (error && !weatherData) {
@@ -129,8 +128,6 @@ function App() {
                     timezone={weatherData?.timezone || 'Asia/Kolkata'}
                     unit={unit}
                     setUnit={setUnit}
-                    theme={theme}
-                    setTheme={setTheme}
                     onLocationSelect={handleLocationSelect}
                     onGpsRequest={handleGpsLocation}
                     loading={loading}
@@ -140,7 +137,6 @@ function App() {
                 <Dashboard
                     weatherData={weatherData}
                     unit={unit}
-                    theme={theme}
                     onLocationSelect={handleLocationSelect}
                     loading={loading}
                     favorites={favorites}

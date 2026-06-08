@@ -18,10 +18,9 @@ const iconAnimClass = {
     CloudLightning:'icon-storm',
 };
 
-const CurrentWeather = ({ current, daily, locationName, weatherDetails, time, timezone, unit, theme }) => {
+const CurrentWeather = ({ current, daily, locationName, weatherDetails, time, timezone, unit }) => {
     const IconComponent = Icons[weatherDetails.icon] || Icons.Sun;
     const animClass = iconAnimClass[weatherDetails.icon] || '';
-    const isLight = theme === 'light';
 
     const formattedDate = time.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', timeZone: timezone });
     const displayTime = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone });
@@ -56,7 +55,7 @@ const CurrentWeather = ({ current, daily, locationName, weatherDetails, time, ti
                 style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', margin: '1.5rem 0 0.5rem' }}
             >
                 <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.35)', filter: 'blur(20px)', borderRadius: '50%' }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.15)', filter: 'blur(20px)', borderRadius: '50%' }} />
                     <div className={animClass} style={{ position: 'relative', zIndex: 2, display: 'inline-block' }}>
                         <IconComponent size={68} strokeWidth={1.4} />
                     </div>

@@ -27,26 +27,25 @@ const getAqiData = (aqi) => {
 };
 
 // ── Wind Compass ─────────────────────────────────────────────────────────────
-const WindCompass = ({ speed, direction, theme }) => {
+const WindCompass = ({ speed, direction }) => {
     const dir = direction ?? 0;
     const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const isLight = theme === 'light';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'center' }}>
             <div style={{ position: 'relative', width: '90px', height: '90px' }}>
                 {/* Compass ring */}
                 <svg width="90" height="90" viewBox="0 0 90 90">
-                    <circle cx="45" cy="45" r="42" fill="none" stroke={isLight ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.06)"} strokeWidth="1.5" />
-                    <circle cx="45" cy="45" r="34" fill="none" stroke={isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)"} strokeWidth="1" />
+                    <circle cx="45" cy="45" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
+                    <circle cx="45" cy="45" r="34" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                     {/* Cardinal tick marks */}
                     {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-                        const rad = (deg - 90) * (Math.PI / 180);
-                        const x1 = 45 + 38 * Math.cos(rad);
-                        const y1 = 45 + 38 * Math.sin(rad);
-                        const x2 = 45 + 32 * Math.cos(rad);
-                        const y2 = 45 + 32 * Math.sin(rad);
-                        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={isLight ? "rgba(15,23,42,0.22)" : "rgba(255,255,255,0.2)"} strokeWidth={i % 2 === 0 ? 1.5 : 0.8} strokeLinecap="round" />;
+                         const rad = (deg - 90) * (Math.PI / 180);
+                         const x1 = 45 + 38 * Math.cos(rad);
+                         const y1 = 45 + 38 * Math.sin(rad);
+                         const x2 = 45 + 32 * Math.cos(rad);
+                         const y2 = 45 + 32 * Math.sin(rad);
+                         return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.2)" strokeWidth={i % 2 === 0 ? 1.5 : 0.8} strokeLinecap="round" />;
                     })}
                     {/* Direction needle */}
                     <motion.g
@@ -55,12 +54,12 @@ const WindCompass = ({ speed, direction, theme }) => {
                         transition={{ type: 'spring', stiffness: 40, damping: 14 }}
                         style={{ transformOrigin: '45px 45px' }}
                     >
-                        {/* North tip (red) */}
-                        <polygon points="45,12 48,45 45,40 42,45" fill="var(--accent-color)" opacity="0.9" style={{ filter: 'drop-shadow(0 0 4px var(--accent-color))' }} />
+                        {/* North tip (accent colored needle) */}
+                        <polygon points="45,12 48,45 45,40 42,45" fill="var(--accent-color)" opacity="0.95" style={{ filter: 'drop-shadow(0 0 4px var(--accent-color))' }} />
                         {/* South tip */}
-                        <polygon points="45,78 48,45 45,50 42,45" fill={isLight ? "rgba(15,23,42,0.2)" : "rgba(255,255,255,0.3)"} />
+                        <polygon points="45,78 48,45 45,50 42,45" fill="rgba(255,255,255,0.3)" />
                     </motion.g>
-                    <circle cx="45" cy="45" r="4" fill={isLight ? "#0f172a" : "white"} opacity="0.9" />
+                    <circle cx="45" cy="45" r="4" fill="white" opacity="0.9" />
                 </svg>
 
                 {/* Cardinal labels */}
@@ -74,9 +73,9 @@ const WindCompass = ({ speed, direction, theme }) => {
                             position: 'absolute',
                             left: `${x}px`,
                             top: `${y}px`,
-                            fontSize: '0.6rem',
+                            fontSize: '0.62rem',
                             fontWeight: 700,
-                            color: c === 'N' ? 'var(--accent-color)' : (isLight ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.45)'),
+                            color: c === 'N' ? 'var(--accent-color)' : 'rgba(255,255,255,0.45)',
                             transform: 'translate(-50%, -50%)',
                             lineHeight: 1,
                         }}>{c}</div>
@@ -104,8 +103,7 @@ const SkeletonCard = () => (
 );
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favorites = [] }) => {
-    const isLight = theme === 'light';
+const Dashboard = ({ weatherData, unit, onLocationSelect, loading, favorites = [] }) => {
     const toUnit = (c) => unit === 'F' ? Math.round((c * 9 / 5) + 32) : Math.round(c);
 
     // When loading, show skeleton grid
@@ -165,7 +163,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
             <div style={{ position: 'fixed', bottom: '-8%', left: '18%', width: '560px', height: '560px', background: 'rgba(167,139,250,0.1)', borderRadius: '50%', filter: 'blur(140px)', zIndex: 0, pointerEvents: 'none' }} />
 
             {/* ── Combined Forecast Parallax Card ── */}
-            <ForecastParallaxCard hourlyData={hourly} dailyData={daily} unit={unit} currentTime={current.time} theme={theme} />
+            <ForecastParallaxCard hourlyData={hourly} dailyData={daily} unit={unit} currentTime={current.time} />
 
             {/* ── Current Conditions Grid ── */}
             <div style={{ position: 'relative', zIndex: 10 }}>
@@ -197,7 +195,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
 
                     {/* Wind Compass */}
                     <MetricCard title="Wind" icon={Compass} delay={0.1}>
-                        <WindCompass speed={current.wind_speed_10m} direction={current.wind_direction_10m} theme={theme} />
+                        <WindCompass speed={current.wind_speed_10m} direction={current.wind_direction_10m} />
                     </MetricCard>
 
                     {/* Humidity */}
@@ -207,7 +205,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                                 {current.relative_humidity_2m}<span style={{ fontSize: '1.2rem', opacity: 0.6 }}>%</span>
                             </div>
                             <div style={{ marginTop: '1.5rem' }}>
-                                <div style={{ width: '100%', height: '7px', background: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${current.relative_humidity_2m}%` }}
@@ -236,7 +234,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                                 {[0, 1, 2, 3, 4].map(i => {
                                     const thresholds = [-1, 2, 5, 7, 10];
                                     const active = (current.uv_index || 0) > thresholds[i];
-                                    return <div key={i} style={{ flex: 1, height: '6px', borderRadius: '3px', background: active ? `hsl(${40 - i * 8}, 90%, 55%)` : (isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)'), boxShadow: active ? `0 0 6px hsl(${40 - i * 8}, 90%, 55%)` : 'none', transition: 'all 0.5s ease' }} />;
+                                    return <div key={i} style={{ flex: 1, height: '6px', borderRadius: '3px', background: active ? `hsl(${40 - i * 8}, 90%, 55%)` : 'rgba(255,255,255,0.08)', boxShadow: active ? `0 0 6px hsl(${40 - i * 8}, 90%, 55%)` : 'none', transition: 'all 0.5s ease' }} />;
                                 })}
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', marginTop: '5px', opacity: 0.38 }}>
@@ -252,7 +250,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                                 {feelsLikeDisplay}°
                             </div>
                             <div style={{ marginTop: '1.5rem' }}>
-                                <div style={{ width: '100%', height: '7px', background: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${feelsLikeProgress * 100}%` }}
@@ -274,7 +272,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                                 {daily.precipitation_probability_max[0]}<span style={{ fontSize: '1.1rem', opacity: 0.6 }}>%</span>
                             </div>
                             <div style={{ marginTop: '1.5rem' }}>
-                                <div style={{ width: '100%', height: '7px', background: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: `${daily.precipitation_probability_max[0]}%` }}
@@ -303,7 +301,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                                     </div>
                                 </div>
                                 <div style={{ marginTop: '1.5rem' }}>
-                                    <div style={{ width: '100%', height: '7px', background: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${pressureProgress * 100}%` }}
@@ -328,12 +326,12 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                                         {visibilityKm}
                                     </div>
                                     <div style={{ fontSize: '0.8rem', opacity: 0.5, fontWeight: 500 }}>km</div>
-                                    <div style={{ fontSize: '0.82rem', opacity: 0.7, fontWeight: 600, padding: '2px 10px', borderRadius: '10px', background: isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255,255,255,0.1)', marginLeft: 'auto' }}>
+                                    <div style={{ fontSize: '0.82rem', opacity: 0.7, fontWeight: 600, padding: '2px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.1)', marginLeft: 'auto' }}>
                                         {visLabel}
                                     </div>
                                 </div>
                                 <div style={{ marginTop: '1.5rem' }}>
-                                    <div style={{ width: '100%', height: '7px', background: isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${visibilityPct * 100}%` }}
@@ -359,7 +357,7 @@ const Dashboard = ({ weatherData, unit, theme, onLocationSelect, loading, favori
                 style={{ position: 'relative', zIndex: 10, marginBottom: '1rem' }}
             >
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', opacity: 0.9 }}>Location Map</h3>
-                <WeatherMap lat={latitude} lon={longitude} theme={theme} onLocationSelect={onLocationSelect} favorites={favorites} unit={unit} />
+                <WeatherMap lat={latitude} lon={longitude} onLocationSelect={onLocationSelect} favorites={favorites} unit={unit} />
             </motion.div>
         </div>
     );

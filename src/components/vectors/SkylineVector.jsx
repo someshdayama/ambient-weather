@@ -1,11 +1,10 @@
 import React from 'react';
 
-const SkylineVector = ({ showNightBg, theme }) => {
-    const isLight = theme === 'light';
-    const fill1 = isLight ? '#94a3b8' : (showNightBg ? '#060d14' : '#1c4a96');
-    const fill2 = isLight ? '#cbd5e1' : (showNightBg ? '#000000' : '#0a2a61');
-    const opacity1 = isLight ? 0.35 : (showNightBg ? 0.4 : 0.6);
-    const opacity2 = isLight ? 0.22 : (showNightBg ? 0.7 : 0.4);
+const SkylineVector = ({ showNightBg }) => {
+    const fill1 = showNightBg ? '#060d14' : '#1c4a96';
+    const fill2 = showNightBg ? '#000000' : '#0a2a61';
+    const opacity1 = showNightBg ? 0.4 : 0.6;
+    const opacity2 = showNightBg ? 0.7 : 0.4;
 
     return (
         <div style={{
