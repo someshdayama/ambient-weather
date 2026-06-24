@@ -92,7 +92,6 @@ body {
   background: var(--bg-current);
   background-size: 200% 200%;
   animation: ambient-drift 20s ease infinite;
-  background-attachment: fixed;
   min-height: 100dvh;
   display: flex;
   justify-content: center;
@@ -549,6 +548,7 @@ body {
     height: auto;
     min-height: 100dvh;
     overflow-y: auto;
+    animation: none; /* Disable expensive background animation on mobile */
   }
   .sidebar {
     width: 100% !important;
@@ -558,6 +558,12 @@ body {
     padding: 1.5rem !important;
     border-right: none !important;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+  }
+  .glass-panel {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
   .sun-arc-horizontal {
     margin-top: 2rem !important;

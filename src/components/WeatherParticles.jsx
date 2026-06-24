@@ -6,8 +6,11 @@ import React, { useMemo } from 'react';
  */
 const WeatherParticles = ({ weatherTheme }) => {
     const particles = useMemo(() => {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+        const multiplier = isMobile ? 0.3 : 1; // Reduce particles by 70% on mobile
+
         if (weatherTheme === 'rain' || weatherTheme === 'storm') {
-            return Array.from({ length: 28 }, (_, i) => ({
+            return Array.from({ length: Math.floor(28 * multiplier) }, (_, i) => ({
                 type: 'rain',
                 id: i,
                 left: `${Math.random() * 100}%`,
@@ -18,7 +21,7 @@ const WeatherParticles = ({ weatherTheme }) => {
             }));
         }
         if (weatherTheme === 'snow') {
-            return Array.from({ length: 22 }, (_, i) => ({
+            return Array.from({ length: Math.floor(22 * multiplier) }, (_, i) => ({
                 type: 'snow',
                 id: i,
                 left: `${Math.random() * 100}%`,
@@ -29,7 +32,7 @@ const WeatherParticles = ({ weatherTheme }) => {
             }));
         }
         if (weatherTheme === 'clear-night') {
-            return Array.from({ length: 55 }, (_, i) => ({
+            return Array.from({ length: Math.floor(55 * multiplier) }, (_, i) => ({
                 type: 'star',
                 id: i,
                 left: `${Math.random() * 100}%`,
