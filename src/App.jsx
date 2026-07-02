@@ -13,7 +13,9 @@ function App() {
     const [locationName, setLocationName] = useState('Mumbai');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [unit, setUnit] = useState('C');
+    const [unit, setUnit] = useState(() => {
+        try { return localStorage.getItem('ambient_unit') || 'C'; } catch { return 'C'; }
+    });
     const [favorites, setFavorites] = useState(() => {
         try { return JSON.parse(localStorage.getItem('ambient_weather_favorites')) || []; }
         catch { return []; }
@@ -52,6 +54,11 @@ function App() {
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
     }, []);
+
+    // Persist unit preference
+    useEffect(() => {
+        try { localStorage.setItem('ambient_unit', unit); } catch {}
+    }, [unit]);
 
     // Set weather-reactive background attribute
     useEffect(() => {
