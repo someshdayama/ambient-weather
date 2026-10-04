@@ -10,12 +10,12 @@ import { getWindDirection, getPressureInfo, getVisibilityLabel, getUvAdvice } fr
 
 // ── AQI ──────────────────────────────────────────────────────────────────────
 const aqiRanges = [
-    { min: 0,   max: 50,  label: 'Very Good',  color: '#10b981' },
-    { min: 50,  max: 100, label: 'Good',        color: '#84cc16' },
-    { min: 100, max: 150, label: 'Bearable',    color: '#f59e0b' },
-    { min: 150, max: 200, label: 'Bad',         color: '#f97316' },
-    { min: 200, max: 300, label: 'Very Bad',    color: '#ef4444' },
-    { min: 300, max: 500, label: 'Hazardous',   color: '#7c3aed' },
+    { min: 0, max: 50, label: 'Very Good', color: '#10b981' },
+    { min: 50, max: 100, label: 'Good', color: '#84cc16' },
+    { min: 100, max: 150, label: 'Bearable', color: '#f59e0b' },
+    { min: 150, max: 200, label: 'Bad', color: '#f97316' },
+    { min: 200, max: 300, label: 'Very Bad', color: '#ef4444' },
+    { min: 300, max: 500, label: 'Hazardous', color: '#7c3aed' },
 ];
 
 const getAqiData = (aqi) => {
@@ -40,12 +40,12 @@ const WindCompass = ({ speed, direction }) => {
                     <circle cx="45" cy="45" r="34" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
                     {/* Cardinal tick marks */}
                     {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-                         const rad = (deg - 90) * (Math.PI / 180);
-                         const x1 = 45 + 38 * Math.cos(rad);
-                         const y1 = 45 + 38 * Math.sin(rad);
-                         const x2 = 45 + 32 * Math.cos(rad);
-                         const y2 = 45 + 32 * Math.sin(rad);
-                         return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.2)" strokeWidth={i % 2 === 0 ? 1.5 : 0.8} strokeLinecap="round" />;
+                        const rad = (deg - 90) * (Math.PI / 180);
+                        const x1 = 45 + 38 * Math.cos(rad);
+                        const y1 = 45 + 38 * Math.sin(rad);
+                        const x2 = 45 + 32 * Math.cos(rad);
+                        const y2 = 45 + 32 * Math.sin(rad);
+                        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.2)" strokeWidth={i % 2 === 0 ? 1.5 : 0.8} strokeLinecap="round" />;
                     })}
                     {/* Direction needle */}
                     <motion.g
@@ -132,7 +132,7 @@ const Dashboard = ({ weatherData, unit, onLocationSelect, loading, favorites = [
 
     const { current, hourly, daily, aqi, latitude, longitude } = weatherData;
     const aqiInfo = getAqiData(aqi);
-    const uvInfo  = getUvAdvice(current.uv_index || 0);
+    const uvInfo = getUvAdvice(current.uv_index || 0);
 
     // Wind gauge (half-arc) for wind speed
     const windProgress = Math.min((current.wind_speed_10m || 0) / 100, 1);
@@ -143,7 +143,7 @@ const Dashboard = ({ weatherData, unit, onLocationSelect, loading, favorites = [
     const pressureProgress = pressureHpa ? Math.min(Math.max((pressureHpa - 950) / 100, 0), 1) : 0;
 
     // Visibility
-    const visibilityM  = current.visibility;
+    const visibilityM = current.visibility;
     const visibilityKm = visibilityM != null ? (visibilityM / 1000).toFixed(1) : null;
     const visibilityPct = visibilityM != null ? Math.min(visibilityM / 10000, 1) : 0;
     const visLabel = getVisibilityLabel(visibilityM);

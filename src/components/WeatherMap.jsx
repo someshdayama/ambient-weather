@@ -46,9 +46,36 @@ const MapEvents = ({ onClick }) => {
     return null;
 };
 
+// CARTO's anonymous raster basemaps now stamp every tile with "API KEY REQUIRED".
+// Esri's public canvas and imagery services serve the same light, dark, and satellite looks without a key.
+const ESRI_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community';
+
+const MAP_STYLES = {
+    light: {
+        attribution: ESRI_ATTRIBUTION,
+        urls: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        ],
+    },
+    dark: {
+        attribution: ESRI_ATTRIBUTION,
+        urls: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        ],
+    },
+    satellite: {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+        urls: [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+    },
+};
+
 const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
     const isLight = theme === 'light';
-    
+
     // Manage active coords locally for instant flyTo feedback on map clicks
     const [activeCoords, setActiveCoords] = useState([lat, lon]);
 
@@ -59,17 +86,13 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
 
     // Map style state
     const [mapStyle, setMapStyle] = useState(theme === 'dark' ? 'dark' : 'light');
-    
+
     // Sync style with main theme
     useEffect(() => {
         setMapStyle(theme === 'dark' ? 'dark' : 'light');
     }, [theme]);
 
-    const mapStyleUrls = {
-        light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    };
+    const activeMapStyle = MAP_STYLES[mapStyle];
 
     const handleMapClick = (clickLat, clickLon) => {
         setActiveCoords([clickLat, clickLon]);
@@ -97,14 +120,14 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
     };
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            style={{ 
-                width: '100%', 
-                height: '350px', 
-                borderRadius: '24px', 
+            style={{
+                width: '100%',
+                height: '350px',
+                borderRadius: '24px',
                 overflow: 'hidden',
                 position: 'relative',
                 zIndex: 10,
@@ -114,10 +137,14 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
             }}
         >
             <MapContainer center={activeCoords} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                <TileLayer
-                    url={mapStyleUrls[mapStyle]}
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                />
+                {activeMapStyle.urls.map((url, index) => (
+                    <TileLayer
+                        key={`${mapStyle}-${index}`}
+                        url={url}
+                        {...(index === 0 ? { attribution: activeMapStyle.attribution } : {})}
+                        maxZoom={19}
+                    />
+                ))}
 
                 {/* Current Active Location Marker */}
                 <Marker position={activeCoords}>
@@ -131,8 +158,8 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
                     const isCurrent = Math.abs(fav.lat - lat) < 0.01 && Math.abs(fav.lon - lon) < 0.01;
                     if (isCurrent) return null;
                     return (
-                        <Marker 
-                            key={`fav-${i}`} 
+                        <Marker
+                            key={`fav-${i}`}
                             position={[fav.lat, fav.lon]}
                             icon={favMarkerIcon}
                             eventHandlers={{
@@ -175,8 +202,8 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
                             padding: '6px 12px',
                             borderRadius: '10px',
                             border: 'none',
-                            background: mapStyle === style 
-                                ? (isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)') 
+                            background: mapStyle === style
+                                ? (isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)')
                                 : 'transparent',
                             color: 'var(--text-primary)',
                             fontSize: '0.72rem',
