@@ -1,14 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Calendar, Clock } from 'lucide-react';
 import HourlyChart from './HourlyChart';
 import Forecast from './Forecast';
 
-const ForecastParallaxCard = ({ hourlyData, dailyData, unit, currentTime, theme }) => {
+const ForecastParallaxCard = ({ hourlyData, dailyData, unit, currentTime }) => {
     const scrollRef = useRef(null);
     
     const [scrollTop, setScrollTop] = useState(0);
-    const isLight = theme === 'light';
 
     const handleScroll = (e) => {
         setScrollTop(e.target.scrollTop);
@@ -39,6 +37,8 @@ const ForecastParallaxCard = ({ hourlyData, dailyData, unit, currentTime, theme 
                 zIndex: 10
             }}
             className="glass-panel"
+            aria-label="Forecast"
+            role="region"
         >
             {/* Header */}
             <div style={{
@@ -52,31 +52,35 @@ const ForecastParallaxCard = ({ hourlyData, dailyData, unit, currentTime, theme 
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.3px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {activeTab === 'hourly' ? (
                         <>
-                            <Clock size={18} color="var(--accent-color)" /> Today's Forecast
+                            <Clock size={18} aria-hidden="true" /> Today&apos;s Forecast
                         </>
                     ) : (
                         <>
-                            <Calendar size={18} color="var(--accent-color)" /> 7-Day Forecast
+                            <Calendar size={18} aria-hidden="true" /> 7-Day Forecast
                         </>
                     )}
                 </h3>
 
                 {/* Switcher toggle */}
-                <div className="tab-switcher">
+                <div className="tab-switcher" role="group" aria-label="Forecast view">
                     <div
                         className="tab-switcher-slider"
                         style={{
-                            transform: activeTab === '7day' ? 'translateX(80px)' : 'translateX(0px)'
+                            transform: activeTab === '7day' ? 'translateX(100%)' : 'translateX(0px)'
                         }}
                     />
                     
                     <button
+                        type="button"
+                        aria-pressed={activeTab === 'hourly'}
                         onClick={() => handleToggleTab('hourly')}
                         className={`tab-switcher-btn ${activeTab === 'hourly' ? 'active' : ''}`}
                     >
                         Hourly
                     </button>
                     <button
+                        type="button"
+                        aria-pressed={activeTab === '7day'}
                         onClick={() => handleToggleTab('7day')}
                         className={`tab-switcher-btn ${activeTab === '7day' ? 'active' : ''}`}
                     >
@@ -106,7 +110,7 @@ const ForecastParallaxCard = ({ hourlyData, dailyData, unit, currentTime, theme 
                     marginBottom: '2rem',
                     transition: 'opacity 0.1s ease-out'
                 }}>
-                    <HourlyChart hourlyData={hourlyData} unit={unit} currentTime={currentTime} theme={theme} />
+                    <HourlyChart hourlyData={hourlyData} unit={unit} currentTime={currentTime} />
                 </div>
 
                 {/* 7-Day Forecast – Scrolls normally underneath */}
@@ -124,7 +128,7 @@ const ForecastParallaxCard = ({ hourlyData, dailyData, unit, currentTime, theme 
                         transition: 'opacity 0.2s ease'
                     }} />
                     
-                    <Forecast daily={dailyData} unit={unit} loading={false} theme={theme} />
+                    <Forecast daily={dailyData} unit={unit} loading={false} />
                 </div>
             </div>
         </div>
