@@ -1,19 +1,17 @@
-import React, { useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { parseLocalTime as parseTime, formatClock, toTemp } from '../utils/weatherUtils';
-import { CloudRain, CloudSnow, Sun, CloudSun, Cloud, CloudDrizzle, CloudLightning, CloudFog } from 'lucide-react';
+import WeatherIcon from './WeatherIcon';
+import { parseLocalTime, formatClock, toTemp } from '../utils/weatherUtils';
 
-const WeatherIcons = { 0: Sun, 1: Sun, 2: CloudSun, 3: Cloud, 45: CloudFog, 48: CloudFog, 51: CloudDrizzle, 53: CloudDrizzle, 55: CloudDrizzle, 61: CloudRain, 63: CloudRain, 65: CloudRain, 71: CloudSnow, 73: CloudSnow, 75: CloudSnow, 80: CloudRain, 81: CloudRain, 82: CloudLightning, 95: CloudLightning, 96: CloudLightning, 99: CloudLightning };
+const HOURS = 24;
+const H = 210;
+const PAD_X = 22;
+const TOP = 58; // time + icon rows
+const LINE_TOP = TOP + 26; // room for temp labels
+const LINE_H = 62;
+const RAIN_TOP = LINE_TOP + LINE_H + 14;
+const RAIN_H = 26;
 
-// SVG layout constants (defined outside component to avoid recreation)
-const W = 860;
-const H = 130;
-const PAD_X = 30;
-const PAD_Y = 20;
-const chartW = W - PAD_X * 2;
-const chartH = H - PAD_Y * 2;
-
-/** Smooth cubic bezier spline path from an array of [x, y] points */
 const smoothPath = (pts) => {
     if (pts.length < 2) return '';
     let d = `M ${pts[0][0]},${pts[0][1]}`;
@@ -22,241 +20,167 @@ const smoothPath = (pts) => {
         const [x1, y1] = pts[i];
         const [x2, y2] = pts[i + 1];
         const [x3, y3] = pts[Math.min(pts.length - 1, i + 2)];
-        const cp1x = x1 + (x2 - x0) / 6;
-        const cp1y = y1 + (y2 - y0) / 6;
-        const cp2x = x2 - (x3 - x1) / 6;
-        const cp2y = y2 - (y3 - y1) / 6;
-        d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${x2},${y2}`;
+        d += ` C ${x1 + (x2 - x0) / 6},${y1 + (y2 - y0) / 6} ${x2 - (x3 - x1) / 6},${y2 - (y3 - y1) / 6} ${x2},${y2}`;
     }
     return d;
 };
 
-const HourlyChart = ({ hourlyData, unit, currentTime }) => {
-    const [tooltip, setTooltip] = useState(null);
-    const svgRef = useRef(null);
+/** Is a wall-clock hour daytime? Prefer API is_day, else compare with that date's sunrise/sunset. */
+const dayFlag = (hourly, daily, i, ms) => {
+    if (hourly.is_day?.[i] != null) return hourly.is_day[i];
+    const date = hourly.time[i].slice(0, 10);
+    const d = daily?.time?.indexOf(date) ?? -1;
+    if (d < 0) return 1;
+    return ms >= parseLocalTime(daily.sunrise[d]) && ms < parseLocalTime(daily.sunset[d]) ? 1 : 0;
+};
 
-    const toUnit = useCallback((c) => toTemp(c, unit), [unit]);
+/**
+ * 24 h temperature line (real-pixel SVG so labels stay ≥12px), with time + day/night icon
+ * every 3 h and rain-chance bars under the line.
+ */
+const HourlyChart = ({ hourlyData, dailyData, unit, currentTime }) => {
+    const wrapRef = useRef(null);
+    const [width, setWidth] = useState(0);
+    const [hover, setHover] = useState(null);
 
-    const currentMs = useMemo(() => parseTime(currentTime), [currentTime]);
-    
-    const currentIndex = useMemo(() => {
-        if (!hourlyData?.time) return -1;
-        return hourlyData.time.findIndex(t => parseTime(t) > currentMs);
-    }, [hourlyData, currentMs]);
-
-    const startIndex = useMemo(() => Math.max(0, currentIndex - 1), [currentIndex]);
+    useEffect(() => {
+        const el = wrapRef.current;
+        if (!el) return undefined;
+        const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     const slice = useMemo(() => {
-        if (currentIndex === -1 || !hourlyData?.time?.length) return null;
-        const HOURS = 24;
-        return {
-            time:   hourlyData.time.slice(startIndex, startIndex + HOURS),
-            temp:   hourlyData.temperature_2m.slice(startIndex, startIndex + HOURS),
-            precip: hourlyData.precipitation_probability.slice(startIndex, startIndex + HOURS),
-            code:   hourlyData.weather_code ? hourlyData.weather_code.slice(startIndex, startIndex + HOURS) : [],
-        };
-    }, [hourlyData, startIndex, currentIndex]);
-
-    const temps = useMemo(() => {
-        if (!slice) return [];
-        return slice.temp.map(toUnit);
-    }, [slice, toUnit]);
-
-    const bounds = useMemo(() => {
-        if (!temps.length) return { minT: 0, maxT: 0, range: 1 };
-        const minT = Math.min(...temps);
-        const maxT = Math.max(...temps);
-        const range = maxT - minT || 1;
-        return { minT, maxT, range };
-    }, [temps]);
-
-    const points = useMemo(() => {
-        if (!temps.length) return [];
-        const { minT, range } = bounds;
-        return temps.map((t, i) => [
-            PAD_X + (i / (temps.length - 1)) * chartW,
-            PAD_Y + chartH - ((t - minT) / range) * chartH,
-        ]);
-    }, [temps, bounds]);
-
-    const linePath = useMemo(() => smoothPath(points), [points]);
-    
-    const areaPath = useMemo(() => {
-        if (!points.length) return '';
-        return linePath + ` L ${points[points.length - 1][0]},${H} L ${PAD_X},${H} Z`;
-    }, [linePath, points]);
-
-    const handleMouseMove = useCallback((e) => {
-        if (!slice || !points.length) return;
-        const rect = svgRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const relX = e.clientX - rect.left;
-        const svgX = (relX / rect.width) * W;
-        const idx = Math.round(((svgX - PAD_X) / chartW) * (temps.length - 1));
-        const clamped = Math.max(0, Math.min(temps.length - 1, idx));
-        const label = clamped === 0 ? 'Now' : formatClock(parseTime(slice.time[clamped]), { hour: 'numeric', hour12: true });
-        setTooltip({
-            x: points[clamped][0],
-            y: points[clamped][1],
-            temp: temps[clamped],
-            precip: slice.precip[clamped],
-            label,
-            svgPctX: (points[clamped][0] / W) * 100,
+        if (!hourlyData?.time?.length) return null;
+        const nowMs = parseLocalTime(currentTime);
+        const idx = hourlyData.time.findIndex((t) => parseLocalTime(t) > nowMs);
+        if (idx === -1) return null;
+        const start = Math.max(0, idx - 1);
+        return hourlyData.time.slice(start, start + HOURS).map((t, k) => {
+            const i = start + k;
+            const ms = parseLocalTime(t);
+            return {
+                ms,
+                temp: toTemp(hourlyData.temperature_2m[i], unit),
+                rain: hourlyData.precipitation_probability?.[i] ?? 0,
+                code: hourlyData.weather_code?.[i],
+                isDay: dayFlag(hourlyData, dailyData, i, ms),
+            };
         });
-    }, [temps, points, slice]);
+    }, [hourlyData, dailyData, unit, currentTime]);
 
-    const handleMouseLeave = useCallback(() => setTooltip(null), []);
+    if (!slice) return <p className="t-secondary" style={{ padding: '2rem 0', textAlign: 'center' }}>Hourly forecast unavailable</p>;
 
-    if (!slice) {
-        return <div style={{ opacity: 0.5, padding: '2rem', textAlign: 'center' }}>Forecast data unavailable</div>;
-    }
+    const n = slice.length;
+    const innerW = Math.max(1, width - PAD_X * 2);
+    const xAt = (i) => PAD_X + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const temps = slice.map((s) => s.temp);
+    const minT = Math.min(...temps);
+    const maxT = Math.max(...temps);
+    const range = maxT - minT || 1;
+    const yAt = (t) => LINE_TOP + LINE_H - ((t - minT) / range) * LINE_H;
+    const pts = slice.map((s, i) => [xAt(i), yAt(s.temp)]);
+    const line = smoothPath(pts);
+    const area = pts.length ? `${line} L ${pts[n - 1][0]},${LINE_TOP + LINE_H + 6} L ${pts[0][0]},${LINE_TOP + LINE_H + 6} Z` : '';
+    const every = width < 520 ? 4 : 3;
+    const labelIdx = slice.map((_, i) => i).filter((i) => i % every === 0);
+    const barW = Math.max(2, innerW / n - 3);
+
+    const onMove = (e) => {
+        const rect = wrapRef.current.getBoundingClientRect();
+        const i = Math.round(((e.clientX - rect.left - PAD_X) / innerW) * (n - 1));
+        setHover(Math.max(0, Math.min(n - 1, i)));
+    };
+
+    const timeLabel = (i) => (i === 0 ? 'Now' : formatClock(slice[i].ms, { hour: 'numeric', hour12: true }));
+    const peakRain = Math.max(...slice.map((s) => s.rain));
 
     return (
-        <div style={{ position: 'relative', width: '100%' }}>
-            {/* Hour labels row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', paddingLeft: `${PAD_X}px`, paddingRight: `${PAD_X}px` }}>
-                {slice.time.filter((_, i) => i % 4 === 0).map((t, i) => {
-                    const absI = i * 4;
-                    const WeatherIcon = WeatherIcons[slice.code[absI]] || Sun;
-                    const label = absI === 0 ? 'Now' : formatClock(parseTime(t), { hour: 'numeric', hour12: true });
-                    return (
-                        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '40px' }}>
-                            <WeatherIcon size={16} strokeWidth={1.5} style={{ opacity: 0.7 }} aria-hidden="true" />
-                            <span style={{ fontSize: '0.72rem', opacity: absI === 0 ? 1 : 0.55, fontWeight: absI === 0 ? 700 : 500 }}>{label}</span>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* SVG Chart */}
-            <div style={{ position: 'relative', width: '100%' }}>
-                <svg
-                    ref={svgRef}
-                    viewBox={`0 0 ${W} ${H}`}
-                    style={{ width: '100%', height: 'auto', display: 'block', overflow: 'visible', cursor: 'crosshair' }}
-                    onPointerMove={handleMouseMove}
-                    onPointerDown={handleMouseMove}
-                    onPointerLeave={handleMouseLeave}
-                    role="img"
-                    aria-label={`Temperature next 24 hours: ${temps[0]}° now, high ${bounds.maxT}°, low ${bounds.minT}°`}
-                >
+        <div
+            ref={wrapRef}
+            className="hourly-chart"
+            style={{ height: H }}
+            onPointerMove={onMove}
+            onPointerDown={onMove}
+            onPointerLeave={() => setHover(null)}
+        >
+            {width > 0 && (
+                <svg width={width} height={H} role="img" aria-label={`Next 24 hours: ${temps[0]}° now, high ${maxT}°, low ${minT}°. Highest rain chance ${peakRain}%.`}>
                     <defs>
-                        <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.6" />
-                            <stop offset="50%"  stopColor="#ffffff" stopOpacity="1" />
-                            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.8" />
-                        </linearGradient>
-                        <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.12" />
+                        <linearGradient id="hourlyArea" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
                             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
                         </linearGradient>
-                        <filter id="lineShadow">
-                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#ffffff" floodOpacity="0.5" />
-                        </filter>
                     </defs>
 
-                    {/* Area fill */}
-                    <motion.path
-                        d={areaPath}
-                        fill="url(#areaGrad)"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                    />
+                    {labelIdx.map((i) => (
+                        <g key={`h${i}`}>
+                            <text x={xAt(i)} y={14} textAnchor="middle" className={`chart-time ${i === 0 ? 'now' : ''}`}>{timeLabel(i)}</text>
+                            <foreignObject x={xAt(i) - 10} y={24} width={20} height={20}>
+                                <WeatherIcon code={slice[i].code} isDay={slice[i].isDay} size={20} strokeWidth={1.5} />
+                            </foreignObject>
+                        </g>
+                    ))}
 
-                    {/* Temperature line — animated stroke-dashoffset */}
+                    <path d={area} fill="url(#hourlyArea)" />
                     <motion.path
-                        d={linePath}
+                        d={line}
                         fill="none"
-                        stroke="url(#lineGrad)"
-                        strokeWidth="2.5"
+                        stroke="#ffffff"
+                        strokeWidth="2"
                         strokeLinecap="round"
-                        strokeLinejoin="round"
-                        filter="url(#lineShadow)"
-                        initial={{ pathLength: 0, opacity: 0 }}
-                        animate={{ pathLength: 1, opacity: 1 }}
-                        transition={{ pathLength: { duration: 1.2, ease: 'easeOut' }, opacity: { duration: 0.3 } }}
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 1, ease: 'easeOut' }}
                     />
 
-                    {/* Data points — show every 4th */}
-                    {points.filter((_, i) => i % 4 === 0).map(([x, y], i) => (
-                        <motion.circle
-                            key={i}
-                            cx={x}
-                            cy={y}
-                            r="4"
-                            fill="#ffffff"
-                            stroke="#000"
-                            strokeWidth="1.5"
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ delay: 0.8 + i * 0.05, type: 'spring', stiffness: 200 }}
-                            style={{ filter: 'drop-shadow(0 0 4px #ffffff)' }}
-                        />
+                    {labelIdx.map((i) => (
+                        <g key={`p${i}`}>
+                            <circle cx={pts[i][0]} cy={pts[i][1]} r="3.5" fill="#ffffff" stroke="#000" strokeWidth="1.5" />
+                            <text x={pts[i][0]} y={pts[i][1] - 10} textAnchor="middle" className="chart-temp">{slice[i].temp}°</text>
+                        </g>
                     ))}
 
-                    {/* Temp labels every 4 hours */}
-                    {points.filter((_, i) => i % 4 === 0).map(([x, y], i) => (
-                        <motion.text
-                            key={`t${i}`}
-                            x={x}
-                            y={y - 12}
-                            textAnchor="middle"
-                            fill="var(--text-primary)"
-                            fontSize="11"
-                            fontWeight="600"
-                            fontFamily="Outfit, sans-serif"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.85 }}
-                            transition={{ delay: 1 + i * 0.05 }}
-                        >
-                            {temps[i * 4]}°
-                        </motion.text>
-                    ))}
-
-                    {/* Hover vertical line */}
-                    {tooltip && (
-                        <line
-                            x1={tooltip.x} y1={PAD_Y}
-                            x2={tooltip.x} y2={H}
-                            stroke="rgba(255,255,255,0.25)"
-                            strokeWidth="1"
-                            strokeDasharray="4 4"
-                        />
+                    {/* Rain chance bars (per hour) */}
+                    {slice.map((s, i) => {
+                        const h = (s.rain / 100) * RAIN_H;
+                        return (
+                            <rect
+                                key={`r${i}`}
+                                x={xAt(i) - barW / 2}
+                                y={RAIN_TOP + RAIN_H - h}
+                                width={barW}
+                                height={Math.max(h, 1)}
+                                rx="1.5"
+                                fill="#ffffff"
+                                opacity={s.rain >= 30 ? 0.75 : 0.22}
+                            />
+                        );
+                    })}
+                    {labelIdx.map((i) =>
+                        slice[i].rain >= 30 ? (
+                            <text key={`rl${i}`} x={xAt(i)} y={RAIN_TOP + RAIN_H + 14} textAnchor="middle" className="chart-rain">{slice[i].rain}%</text>
+                        ) : null,
+                    )}
+                    {peakRain < 30 && (
+                        <text x={width / 2} y={RAIN_TOP + RAIN_H + 14} textAnchor="middle" className="chart-rain-legend">Rain chance below 30% for the next 24 h</text>
                     )}
 
-                    {/* Hover dot */}
-                    {tooltip && (
-                        <circle
-                            cx={tooltip.x}
-                            cy={tooltip.y}
-                            r="5"
-                            fill="white"
-                            stroke="#ffffff"
-                            strokeWidth="2"
-                            style={{ filter: 'drop-shadow(0 0 6px #ffffff)' }}
-                        />
+                    {hover != null && (
+                        <line x1={xAt(hover)} x2={xAt(hover)} y1={LINE_TOP - 6} y2={RAIN_TOP + RAIN_H} stroke="rgba(255,255,255,0.35)" strokeDasharray="3 4" />
                     )}
+                    {hover != null && <circle cx={pts[hover][0]} cy={pts[hover][1]} r="5" fill="#ffffff" />}
                 </svg>
+            )}
 
-                {/* Tooltip */}
-                {tooltip && (
-                    <div
-                        className="chart-tooltip"
-                        style={{
-                            position: 'absolute',
-                            left: `${tooltip.svgPctX}%`,
-                            top: `${(tooltip.y / H) * 100}%`,
-                        }}
-                    >
-                        <span style={{ fontWeight: 700 }}>{tooltip.temp}°</span>
-                        {tooltip.precip > 0 && (
-                            <span style={{ marginLeft: '6px', opacity: 0.85 }}>💧 {tooltip.precip}%</span>
-                        )}
-                        <span style={{ opacity: 0.6, marginLeft: '6px', fontSize: '0.7rem' }}>{tooltip.label}</span>
-                    </div>
-                )}
-            </div>
+            {hover != null && width > 0 && (
+                <div className="chart-tooltip" style={{ left: Math.min(Math.max(xAt(hover), 70), width - 70), top: LINE_TOP - 14 }}>
+                    <strong>{slice[hover].temp}°</strong>
+                    <span className="t-secondary">{timeLabel(hover)}</span>
+                    <span>Rain {slice[hover].rain}%</span>
+                </div>
+            )}
         </div>
     );
 };

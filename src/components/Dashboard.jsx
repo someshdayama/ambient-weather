@@ -1,51 +1,39 @@
-import React, { Suspense, lazy, useMemo } from 'react';
-import { Droplet, Sun, Thermometer, Umbrella, Activity, Gauge, Eye, Compass } from 'lucide-react';
-import { motion } from 'framer-motion';
-import MetricCard from './MetricCard';
-import ForecastParallaxCard from './ForecastParallaxCard';
+import { Suspense, lazy, useMemo } from 'react';
+import { Activity, Umbrella, Wind } from 'lucide-react';
+import HourlyChart from './HourlyChart';
+import WeekForecast from './WeekForecast';
+import SunArc from './SunArc';
 import {
-    AQI_BANDS,
+    getAqiAdvice,
     getAqiInfo,
-    getWindDirection,
+    getDewPointComfort,
+    getFeelsLikeReason,
     getPressureInfo,
-    getVisibilityLabel,
+    getRainSummary,
     getUvAdvice,
-    parseLocalTime,
+    getVisibilityLabel,
+    getWindDescription,
+    getWindDirection,
     locationNowMs,
+    parseLocalTime,
     formatClock,
     toTemp,
     toWind,
     windUnitLabel,
 } from '../utils/weatherUtils';
 
-// Leaflet + tiles are ~40% of the JS: load the map only when the dashboard renders it.
+// Leaflet + tiles are a big chunk: load the map only when the dashboard renders it.
 const WeatherMap = lazy(() => import('./WeatherMap'));
 
-const TRACK = 'rgba(255,255,255,0.08)';
-
-const Bar = ({ value, color = '#ffffff', glow = false }) => (
-    <div className="bar-track" style={{ background: TRACK }}>
-        <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
-            transition={{ duration: 0.9, ease: 'easeOut' }}
-            className="bar-fill"
-            style={{ background: color, boxShadow: glow ? `0 0 8px ${color}` : 'none' }}
-        />
+const CardHead = ({ icon: Icon, title }) => (
+    <div className="card-head">
+        <h3 className="card-title">
+            <Icon size={18} strokeWidth={1.75} aria-hidden="true" /> {title}
+        </h3>
     </div>
 );
 
-const Scale = ({ labels }) => (
-    <div className="scale-labels" aria-hidden="true">
-        {labels.map((l) => <span key={l}>{l}</span>)}
-    </div>
-);
-
-const Pill = ({ color, children }) => (
-    <div className="pill" style={{ color, background: `${color}1a`, border: `1px solid ${color}40` }}>{children}</div>
-);
-
-// ── AQI 24h trend ────────────────────────────────────────────────────────────
+// ── AQI card ─────────────────────────────────────────────────────────────────
 const AqiTrend = ({ hourly, nowMs }) => {
     const slice = useMemo(() => {
         if (!hourly?.time?.length) return [];
@@ -59,97 +47,164 @@ const AqiTrend = ({ hourly, nowMs }) => {
     const max = Math.max(100, ...slice.map((p) => p.v));
     const peak = slice.reduce((a, b) => (b.v > a.v ? b : a));
     const peakInfo = getAqiInfo(peak.v);
+    const tick = (i) => (i === 0 ? 'Now' : formatClock(slice[i].t, { hour: 'numeric', hour12: true }));
+    const ticks = [0, 6, 12, 18].filter((i) => i < slice.length);
 
     return (
         <div className="aqi-trend">
             <div className="aqi-trend-head">
-                <span>Next 24 h</span>
+                <span className="t-secondary">Next 24 h</span>
                 <span>
-                    Peak <strong style={{ color: peakInfo.color }}>{Math.round(peak.v)}</strong> at {formatClock(peak.t, { hour: 'numeric', hour12: true })}
+                    Worst <strong style={{ color: peakInfo.color }}>{Math.round(peak.v)}</strong> around {tick(slice.indexOf(peak))}
                 </span>
             </div>
-            <div className="aqi-trend-bars" role="img" aria-label={`Air quality next 24 hours, peaking at ${Math.round(peak.v)} (${peakInfo.label})`}>
+            <div className="aqi-trend-bars" role="img" aria-label={`Air quality over the next 24 hours, worst ${Math.round(peak.v)} (${peakInfo.label})`}>
                 {slice.map((p) => (
-                    <div
-                        key={p.t}
-                        className="aqi-trend-bar"
-                        style={{ height: `${Math.max(6, (p.v / max) * 100)}%`, background: getAqiInfo(p.v).color, opacity: 0.85 }}
-                        title={`${formatClock(p.t, { hour: 'numeric', hour12: true })}: ${Math.round(p.v)}`}
-                    />
+                    <div key={p.t} className="aqi-trend-bar" style={{ height: `${Math.max(6, (p.v / max) * 100)}%`, background: getAqiInfo(p.v).color }} />
+                ))}
+            </div>
+            <div className="aqi-trend-axis" aria-hidden="true">
+                {ticks.map((i) => (
+                    <span key={i} style={{ left: `${(i / (slice.length - 1)) * 100}%` }}>{tick(i)}</span>
                 ))}
             </div>
         </div>
     );
 };
 
-// ── Wind Compass ─────────────────────────────────────────────────────────────
-const WindCompass = ({ speed, direction, unit }) => {
-    const dir = direction ?? 0;
-    const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-
+const AqiCard = ({ aqi, aqiHourly, nowMs }) => {
+    const info = getAqiInfo(aqi);
     return (
-        <div className="wind-compass">
-            <div style={{ position: 'relative', width: '90px', height: '90px' }} aria-hidden="true">
-                <svg width="90" height="90" viewBox="0 0 90 90">
-                    <circle cx="45" cy="45" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
-                    <circle cx="45" cy="45" r="34" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                    {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
-                        const rad = (deg - 90) * (Math.PI / 180);
-                        return (
-                            <line
-                                key={deg}
-                                x1={45 + 38 * Math.cos(rad)} y1={45 + 38 * Math.sin(rad)}
-                                x2={45 + 32 * Math.cos(rad)} y2={45 + 32 * Math.sin(rad)}
-                                stroke="rgba(255,255,255,0.25)" strokeWidth={i % 2 === 0 ? 1.5 : 0.8} strokeLinecap="round"
-                            />
-                        );
-                    })}
-                    <motion.g
-                        initial={{ rotate: 0 }}
-                        animate={{ rotate: dir }}
-                        transition={{ type: 'spring', stiffness: 40, damping: 14 }}
-                        style={{ transformOrigin: '45px 45px' }}
-                    >
-                        <polygon points="45,12 48,45 45,40 42,45" fill="#ffffff" />
-                        <polygon points="45,78 48,45 45,50 42,45" fill="rgba(255,255,255,0.3)" />
-                    </motion.g>
-                    <circle cx="45" cy="45" r="4" fill="white" />
-                </svg>
-
-                {cardinals.map((c, i) => {
-                    const rad = (i * 45 - 90) * (Math.PI / 180);
-                    return (
-                        <div
-                            key={c}
-                            className="compass-label"
-                            style={{
-                                left: `${45 + 50 * Math.cos(rad) - 5}px`,
-                                top: `${45 + 50 * Math.sin(rad) + 4}px`,
-                                color: c === 'N' ? '#ffffff' : 'rgba(255,255,255,0.45)',
-                            }}
-                        >
-                            {c}
-                        </div>
-                    );
-                })}
+        <section className="glass-panel card" aria-label="Air quality">
+            <CardHead icon={Activity} title="Air quality" />
+            <div className="card-value-row">
+                <span className="value-lg" style={{ color: info.index >= 2 ? info.color : undefined }}>{aqi != null ? Math.round(aqi) : '—'}</span>
+                <span className="value-label" style={{ color: info.index >= 1 ? info.color : undefined }}>{info.label}</span>
             </div>
-
-            <div style={{ textAlign: 'center' }}>
-                <div className="metric-value-md">
-                    {toWind(speed, unit)} <span className="metric-unit">{windUnitLabel(unit)}</span>
-                </div>
-                <div className="metric-sub">from {getWindDirection(dir)}</div>
-            </div>
-        </div>
+            <p className="card-text">{getAqiAdvice(info.index)}</p>
+            <AqiTrend hourly={aqiHourly} nowMs={nowMs} />
+            <p className="card-foot t-secondary">US AQI: 0–50 good, 51–100 moderate, above 100 unhealthy for some.</p>
+        </section>
     );
 };
 
-// ── Skeleton Card ─────────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-    <div className="glass-panel skeleton-card" aria-hidden="true">
-        <div className="skeleton" style={{ height: '16px', width: '40%' }} />
-        <div className="skeleton" style={{ height: '50px', width: '60%', marginTop: '8px' }} />
-        <div className="skeleton" style={{ height: '8px', width: '100%', marginTop: 'auto' }} />
+// ── Rain card ────────────────────────────────────────────────────────────────
+const RainCard = ({ hourly, daily, nowMs }) => {
+    const rain = getRainSummary(hourly, nowMs, daily?.precipitation_probability_max?.[0]);
+    const chance = rain.chance ?? 0;
+    return (
+        <section className="glass-panel card" aria-label="Rain">
+            <CardHead icon={Umbrella} title="Rain" />
+            <div className="card-value-row">
+                <span className="value-lg">{chance}<span className="value-unit">%</span></span>
+            </div>
+            <p className="card-text">{rain.text}</p>
+            <div className="meter" aria-hidden="true"><div className="meter-fill" style={{ width: `${chance}%` }} /></div>
+            <p className="card-foot t-secondary">Highest chance of rain for the rest of today.</p>
+        </section>
+    );
+};
+
+// ── Wind card ────────────────────────────────────────────────────────────────
+const WindCard = ({ speed, gusts, direction, unit }) => {
+    const dir = direction ?? 0;
+    return (
+        <section className="glass-panel card" aria-label="Wind">
+            <CardHead icon={Wind} title="Wind" />
+            <div className="wind-body">
+                <div className="card-value-col">
+                    <span className="value-lg">{toWind(speed, unit)}<span className="value-unit"> {windUnitLabel(unit)}</span></span>
+                    <span className="card-text">{getWindDescription(speed)}</span>
+                    <span className="card-text t-secondary">From the {getWindDirection(dir)}</span>
+                    {gusts != null && <span className="card-text t-secondary">Gusts {toWind(gusts, unit)} {windUnitLabel(unit)}</span>}
+                </div>
+                <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true" className="compass">
+                    <circle cx="44" cy="44" r="40" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+                    {[0, 90, 180, 270].map((deg) => {
+                        const rad = (deg - 90) * (Math.PI / 180);
+                        return <line key={deg} x1={44 + 40 * Math.cos(rad)} y1={44 + 40 * Math.sin(rad)} x2={44 + 34 * Math.cos(rad)} y2={44 + 34 * Math.sin(rad)} stroke="#fff" strokeWidth="1.5" />;
+                    })}
+                    <text x="44" y="17" textAnchor="middle" className="compass-n">N</text>
+                    {/* Arrow points where the wind is blowing TO (from `dir`). */}
+                    <g transform={`rotate(${dir + 180} 44 44)`}>
+                        <line x1="44" y1="62" x2="44" y2="26" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                        <polygon points="44,20 49,30 39,30" fill="#fff" />
+                    </g>
+                </svg>
+            </div>
+        </section>
+    );
+};
+
+// ── Details list ─────────────────────────────────────────────────────────────
+const DetailRow = ({ label, value, text, warn }) => (
+    <li className="detail-row">
+        <div className="detail-main">
+            <span className="detail-label">{label}</span>
+            <span className="detail-value" style={{ color: warn || undefined }}>{value}</span>
+        </div>
+        {text && <p className="detail-text">{text}</p>}
+    </li>
+);
+
+const Details = ({ current, unit }) => {
+    const feels = toTemp(current.apparent_temperature, unit);
+    const feelsWarn = current.apparent_temperature >= 40 ? '#f59e0b' : null;
+    const dpC = current.dew_point_2m;
+    const comfort = getDewPointComfort(dpC);
+    const uv = getUvAdvice(current.uv_index || 0);
+    const pressure = getPressureInfo(current.surface_pressure);
+    const visKm = current.visibility != null ? Math.round(current.visibility / 100) / 10 : null;
+
+    return (
+        <section className="glass-panel card details" aria-labelledby="details-title">
+            <div className="card-head"><h3 id="details-title" className="card-title">Details</h3></div>
+            <ul className="detail-list">
+                <DetailRow
+                    label="Feels like"
+                    value={`${feels}°`}
+                    warn={feelsWarn}
+                    text={getFeelsLikeReason(current.temperature_2m, current.apparent_temperature, current.relative_humidity_2m, current.wind_speed_10m)}
+                />
+                <DetailRow
+                    label="Humidity"
+                    value={`${current.relative_humidity_2m}%`}
+                    warn={comfort.warn ? '#f59e0b' : null}
+                    text={Number.isFinite(dpC) ? `${comfort.text}. Dew point ${toTemp(dpC, unit)}°.` : null}
+                />
+                <DetailRow
+                    label="UV index"
+                    value={`${Math.round(current.uv_index || 0)} · ${uv.label}`}
+                    warn={uv.color !== '#ffffff' ? uv.color : null}
+                    text={uv.advice}
+                />
+                {visKm != null && (
+                    <DetailRow label="Visibility" value={`${visKm} km`} text={`${getVisibilityLabel(current.visibility)}. How far you can see clearly.`} />
+                )}
+                {current.surface_pressure != null && (
+                    <DetailRow
+                        label="Pressure"
+                        value={`${Math.round(current.surface_pressure)} hPa`}
+                        warn={pressure.color !== '#ffffff' ? pressure.color : null}
+                        text={
+                            pressure.label.includes('Low')
+                                ? 'Low pressure often brings clouds, wind or rain.'
+                                : pressure.label === 'Normal'
+                                    ? 'Normal. Nothing unusual.'
+                                    : 'High pressure usually means settled, dry weather.'
+                        }
+                    />
+                )}
+            </ul>
+        </section>
+    );
+};
+
+const SkeletonCard = ({ h = 220 }) => (
+    <div className="glass-panel card" aria-hidden="true" style={{ minHeight: h }}>
+        <div className="skeleton" style={{ height: 16, width: '40%' }} />
+        <div className="skeleton" style={{ height: 48, width: '55%', marginTop: 16 }} />
+        <div className="skeleton" style={{ height: 14, width: '80%', marginTop: 16 }} />
     </div>
 );
 
@@ -160,12 +215,12 @@ const Dashboard = ({ weatherData, unit, onLocationSelect, onGpsRequest, gpsState
     if (loading || !weatherData) {
         return (
             <main className="dashboard-container" aria-busy="true">
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                    <div className="skeleton" style={{ height: '20px', width: '200px', marginBottom: '1.5rem' }} />
-                    <div className="skeleton" style={{ height: '160px', width: '100%' }} />
-                </div>
-                <div className="metric-grid">
-                    {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+                <SkeletonCard h={260} />
+                <SkeletonCard h={420} />
+                <div className="hero-cards">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                    <SkeletonCard />
                 </div>
             </main>
         );
@@ -173,153 +228,34 @@ const Dashboard = ({ weatherData, unit, onLocationSelect, onGpsRequest, gpsState
 
     const { current, hourly, daily, aqi, aqiHourly, utc_offset_seconds: utcOffset } = weatherData;
     const nowMs = locationNowMs(utcOffset ?? 0);
-    const aqiInfo = getAqiInfo(aqi);
-    const uvInfo = getUvAdvice(current.uv_index || 0);
-
-    const pressureHpa = current.surface_pressure;
-    const pressureInfo = getPressureInfo(pressureHpa);
-    const pressureProgress = pressureHpa ? (pressureHpa - 950) / 100 : 0;
-
-    const visibilityM = current.visibility;
-    const visibilityKm = visibilityM != null ? (visibilityM / 1000).toFixed(1) : null;
-    const visLabel = getVisibilityLabel(visibilityM);
-
-    const feelsLikeDisplay = toTemp(current.apparent_temperature, unit);
-    const feelsLikeProgress = current.apparent_temperature / 50;
-    const feelsHot = current.apparent_temperature >= 40;
-
-    const rainToday = daily.precipitation_probability_max[0] ?? 0;
-
-    // Use the location we asked for (stable) rather than Open-Meteo's snapped grid point.
     const mapLat = location?.lat ?? weatherData.latitude;
     const mapLon = location?.lon ?? weatherData.longitude;
 
     return (
         <main className="dashboard-container">
-            <div className="ambient-glow" aria-hidden="true" />
-
-            <ForecastParallaxCard hourlyData={hourly} dailyData={daily} unit={unit} currentTime={current.time} />
-
-            <section style={{ position: 'relative', zIndex: 10 }} aria-labelledby="conditions-title">
-                <h3 id="conditions-title" className="section-title">Current Conditions</h3>
-
-                <div className="metric-grid">
-                    <MetricCard title="Air Quality" icon={Activity} delay={0.05}>
-                        <div className="metric-row">
-                            <div className="metric-value-lg">{aqi != null ? Math.round(aqi) : '—'}</div>
-                            <Pill color={aqiInfo.color}>{aqiInfo.short}</Pill>
-                        </div>
-                        <div className="metric-sub">US AQI{aqiInfo.index >= 2 ? ` · ${aqiInfo.label}` : ''}</div>
-                        <AqiTrend hourly={aqiHourly} nowMs={nowMs} />
-                        <div style={{ marginTop: 'auto', paddingTop: '0.9rem' }}>
-                            <div className="aqi-scale" aria-hidden="true">
-                                {AQI_BANDS.map((r, i) => (
-                                    <div
-                                        key={r.label}
-                                        style={{
-                                            flex: r.max - r.min,
-                                            background: i <= aqiInfo.index ? r.color : TRACK,
-                                            boxShadow: i === aqiInfo.index ? `0 0 8px ${r.color}` : 'none',
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                            <Scale labels={['0', '50', '100', '150', '200', '300', '500']} />
-                        </div>
-                    </MetricCard>
-
-                    <MetricCard title="Wind" icon={Compass} delay={0.1}>
-                        <WindCompass speed={current.wind_speed_10m} direction={current.wind_direction_10m} unit={unit} />
-                    </MetricCard>
-
-                    <MetricCard title="Humidity" icon={Droplet} delay={0.15}>
-                        <div className="metric-body">
-                            <div className="metric-value-lg">
-                                {current.relative_humidity_2m}<span className="metric-unit-lg">%</span>
-                            </div>
-                            <div style={{ marginTop: '1.5rem' }}>
-                                <Bar value={current.relative_humidity_2m / 100} />
-                                <Scale labels={['Dry', 'Comfortable', 'Humid']} />
-                            </div>
-                        </div>
-                    </MetricCard>
-
-                    <MetricCard title="UV Index" icon={Sun} delay={0.2}>
-                        <div className="metric-body">
-                            <div className="metric-row">
-                                <div className="metric-value-lg">{Math.round(current.uv_index || 0)}</div>
-                                <Pill color={uvInfo.color}>{uvInfo.label}</Pill>
-                            </div>
-                            <div className="metric-sub">{uvInfo.advice}</div>
-                            <div className="uv-steps" aria-hidden="true">
-                                {[-1, 2, 5, 7, 10].map((threshold, i) => {
-                                    const active = (current.uv_index || 0) > threshold;
-                                    const color = i >= 4 ? '#ef4444' : i >= 2 ? '#f59e0b' : '#ffffff';
-                                    return <div key={threshold} style={{ background: active ? color : TRACK }} />;
-                                })}
-                            </div>
-                            <Scale labels={['Low', 'Mod', 'High', 'V.High', 'Ext']} />
-                        </div>
-                    </MetricCard>
-
-                    <MetricCard title="Feels Like" icon={Thermometer} delay={0.25}>
-                        <div className="metric-body">
-                            <div className="metric-value-lg" style={{ color: feelsHot ? '#f59e0b' : undefined }}>{feelsLikeDisplay}°</div>
-                            <div style={{ marginTop: '1.5rem' }}>
-                                <Bar value={feelsLikeProgress} color={feelsHot ? '#f59e0b' : '#ffffff'} />
-                                <Scale labels={unit === 'F' ? ['32°F', '122°F'] : ['0°C', '50°C']} />
-                            </div>
-                        </div>
-                    </MetricCard>
-
-                    <MetricCard title="Rain Chance" icon={Umbrella} delay={0.3}>
-                        <div className="metric-body">
-                            <div className="metric-value-lg">
-                                {rainToday}<span className="metric-unit-lg">%</span>
-                            </div>
-                            <div style={{ marginTop: '1.5rem' }}>
-                                <Bar value={rainToday / 100} />
-                                <Scale labels={['0%', '50%', '100%']} />
-                            </div>
-                        </div>
-                    </MetricCard>
-
-                    {pressureHpa != null && (
-                        <MetricCard title="Pressure" icon={Gauge} delay={0.35}>
-                            <div className="metric-body">
-                                <div className="metric-row">
-                                    <div className="metric-value-md">{Math.round(pressureHpa)}</div>
-                                    <div className="metric-unit">hPa</div>
-                                    <div style={{ marginLeft: 'auto' }}><Pill color={pressureInfo.color}>{pressureInfo.label}</Pill></div>
-                                </div>
-                                <div style={{ marginTop: '1.5rem' }}>
-                                    <Bar value={pressureProgress} color={pressureInfo.color} />
-                                    <Scale labels={['950', '1000', '1050']} />
-                                </div>
-                            </div>
-                        </MetricCard>
-                    )}
-
-                    {visibilityKm != null && (
-                        <MetricCard title="Visibility" icon={Eye} delay={0.4}>
-                            <div className="metric-body">
-                                <div className="metric-row">
-                                    <div className="metric-value-md">{visibilityKm}</div>
-                                    <div className="metric-unit">km</div>
-                                    <div style={{ marginLeft: 'auto' }}><Pill color="#ffffff">{visLabel}</Pill></div>
-                                </div>
-                                <div style={{ marginTop: '1.5rem' }}>
-                                    <Bar value={visibilityM / 10000} />
-                                    <Scale labels={['0 km', '5 km', '10+ km']} />
-                                </div>
-                            </div>
-                        </MetricCard>
-                    )}
-                </div>
+            <section className="glass-panel card hourly" aria-labelledby="hourly-title">
+                <div className="card-head"><h3 id="hourly-title" className="card-title">Next 24 hours</h3></div>
+                <HourlyChart hourlyData={hourly} dailyData={daily} unit={unit} currentTime={current.time} />
             </section>
 
-            <section style={{ position: 'relative', zIndex: 10, marginBottom: '1rem' }} aria-labelledby="map-title">
-                <h3 id="map-title" className="section-title">Map &amp; Radar</h3>
+            <WeekForecast daily={daily} unit={unit} currentTemp={current.temperature_2m} />
+
+            <div className="hero-cards">
+                <AqiCard aqi={aqi} aqiHourly={aqiHourly} nowMs={nowMs} />
+                <RainCard hourly={hourly} daily={daily} nowMs={nowMs} />
+                <WindCard speed={current.wind_speed_10m} gusts={current.wind_gusts_10m} direction={current.wind_direction_10m} unit={unit} />
+            </div>
+
+            <div className="details-row">
+                <Details current={current} unit={unit} />
+                <section className="glass-panel card sun-card" aria-label="Sun">
+                    <div className="card-head"><h3 className="card-title">Sun</h3></div>
+                    <SunArc daily={daily} nowMs={nowMs} />
+                </section>
+            </div>
+
+            <section className="map-section" aria-labelledby="map-title">
+                <h3 id="map-title" className="section-title">Map &amp; radar</h3>
                 <Suspense fallback={<MapFallback />}>
                     <WeatherMap
                         lat={mapLat}

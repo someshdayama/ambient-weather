@@ -188,3 +188,165 @@ export const getFeelsLikeComparison = (actual, feelsLike) => {
     if (diff > 0) return `Feels ${diff}° hotter`;
     return `Feels ${Math.abs(diff)}° cooler`;
 };
+
+// ── Icons: day/night aware ───────────────────────────────────────────────────
+/** Lucide icon name for a weather code; clear/partly-cloudy switch to night variants. */
+export const getIconName = (code, isDay = 1) => {
+    if (code === 0 || code === 1) return isDay ? 'Sun' : 'Moon';
+    if (code === 2) return isDay ? 'CloudSun' : 'CloudMoon';
+    return getWeatherDetails(code, isDay).icon;
+};
+
+/** One or two plain words for a weather code (7-day list). */
+export const getShortCondition = (code) => {
+    if (code === 0) return 'Clear';
+    if (code === 1) return 'Mostly clear';
+    if (code === 2) return 'Partly cloudy';
+    if (code === 3) return 'Cloudy';
+    if (code === 45 || code === 48) return 'Fog';
+    if (code >= 51 && code <= 55) return 'Drizzle';
+    if (code === 61 || code === 80) return 'Light rain';
+    if (code === 63 || code === 81) return 'Rain';
+    if (code === 65 || code === 82) return 'Heavy rain';
+    if (code >= 71 && code <= 77) return 'Snow';
+    if (code >= 95) return 'Storms';
+    return '—';
+};
+
+// ── 7-day range bar ──────────────────────────────────────────────────────────
+/** Week-wide min/max over the given lows/highs (ignores nulls). */
+export const getWeekRange = (lows = [], highs = []) => {
+    const vals = [...lows, ...highs].filter((v) => v != null && Number.isFinite(v));
+    if (!vals.length) return { min: 0, max: 0 };
+    return { min: Math.min(...vals), max: Math.max(...vals) };
+};
+
+/** Position of a value on the week scale, 0–100 (%). */
+export const scalePct = (value, min, max) => {
+    if (!Number.isFinite(value)) return 0;
+    const span = max - min;
+    if (span <= 0) return 50;
+    return Math.max(0, Math.min(100, ((value - min) / span) * 100));
+};
+
+/** { left, width } in % for a low→high bar on the week scale. Always at least 4% wide. */
+export const rangeBar = (low, high, min, max) => {
+    const left = scalePct(low, min, max);
+    const right = scalePct(high, min, max);
+    const width = Math.max(4, right - left);
+    return { left: Math.min(left, 100 - width), width };
+};
+
+// ── Plain-language explanations ──────────────────────────────────────────────
+/** Rain chance for the rest of today, from hourly data: "Mostly after 6 PM", etc. */
+export const getRainSummary = (hourly, nowMs, dailyMax = null) => {
+    const times = hourly?.time;
+    const probs = hourly?.precipitation_probability;
+    if (!times?.length || !probs?.length || !Number.isFinite(nowMs)) {
+        return { chance: dailyMax ?? null, text: dailyMax != null ? 'Chance of rain today' : '' };
+    }
+    const today = new Date(nowMs).toISOString().slice(0, 10);
+    const hourStart = nowMs - (nowMs % 3600000);
+    const slots = times
+        .map((t, i) => ({ t: parseLocalTime(t), day: t.slice(0, 10), p: probs[i] ?? 0 }))
+        .filter((s) => s.day === today && s.t >= hourStart);
+
+    if (!slots.length) return { chance: dailyMax ?? 0, text: 'Chance of rain today' };
+    const peak = slots.reduce((a, b) => (b.p > a.p ? b : a));
+    const chance = peak.p;
+    if (chance < 30) return { chance, text: 'Rain unlikely for the rest of today' };
+
+    const first = slots.find((s) => s.p >= Math.max(30, chance * 0.7));
+    const startsNow = first.t <= hourStart;
+    if (startsNow) {
+        const threshold = Math.max(30, chance * 0.7);
+        let last = first;
+        for (const s of slots) if (s.p >= threshold) last = s;
+        const until = slots.indexOf(last) < slots.length - 1 ? ` until about ${formatClock(last.t + 3600000, { hour: 'numeric', hour12: true })}` : ' for the rest of today';
+        return { chance, text: `Chance of rain from now${until}` };
+    }
+    return { chance, text: `Chance of rain today, mostly after ${formatClock(first.t, { hour: 'numeric', hour12: true })}` };
+};
+
+/** Why it feels hotter/colder than the thermometer says. Inputs in °C and km/h. */
+export const getFeelsLikeReason = (temp, feels, humidity, windKmh) => {
+    if (!Number.isFinite(temp) || !Number.isFinite(feels)) return '';
+    const diff = Math.round(feels - temp);
+    if (Math.abs(diff) <= 1) return 'Feels about the same as the actual temperature';
+    if (diff > 0) {
+        const why = humidity >= 50 ? ' because of humidity' : windKmh < 5 ? ' because there is little wind' : '';
+        return `Feels ${diff}° hotter${why}`;
+    }
+    const why = windKmh >= 15 ? ' because of the wind' : humidity < 30 ? ' because the air is dry' : '';
+    return `Feels ${Math.abs(diff)}° cooler${why}`;
+};
+
+/** Comfort from dew point (°C) — a better "is it sticky?" signal than relative humidity. */
+export const getDewPointComfort = (dp) => {
+    if (!Number.isFinite(dp)) return { label: '', text: '' };
+    if (dp < 10) return { label: 'Dry', text: 'Air feels dry' };
+    if (dp < 16) return { label: 'Comfortable', text: 'Comfortable' };
+    if (dp < 20) return { label: 'A bit humid', text: 'Slightly sticky' };
+    if (dp < 24) return { label: 'Muggy', text: 'Sticky and muggy' };
+    return { label: 'Oppressive', text: 'Very sticky, hard to cool down', warn: true };
+};
+
+/** Plain advice per US AQI band index (see AQI_BANDS). */
+export const getAqiAdvice = (index) =>
+    [
+        'Air is clean. Enjoy being outside.',
+        'Fine for most people. Unusually sensitive people may want to take it easy.',
+        'Children, older adults and people with asthma should limit long outdoor exercise.',
+        'Everyone should cut back on long or heavy outdoor exercise.',
+        'Avoid long outdoor activity. Consider a mask outdoors.',
+        'Stay indoors with windows closed if you can.',
+    ][index] ?? 'Air quality data unavailable.';
+
+/** Beaufort-ish wind words (km/h). */
+export const getWindDescription = (kmh) => {
+    if (!Number.isFinite(kmh)) return '';
+    if (kmh < 2) return 'Calm';
+    if (kmh < 12) return 'Light breeze';
+    if (kmh < 29) return 'Moderate breeze';
+    if (kmh < 39) return 'Fresh wind';
+    if (kmh < 62) return 'Strong wind';
+    return 'Gale';
+};
+
+/** "11 h 25 m" */
+export const formatDuration = (ms) => {
+    if (!Number.isFinite(ms) || ms < 0) return '—';
+    const mins = Math.round(ms / 60000);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h ? `${h} h ${m} m` : `${m} m`;
+};
+
+/** Daylight facts from wall-clock ms values (parseLocalTime). */
+export const getDaylightInfo = (sunrise, sunset, nowMs, nextSunrise = null) => {
+    if (![sunrise, sunset, nowMs].every(Number.isFinite)) return null;
+    const dayLength = formatDuration(sunset - sunrise);
+    if (nowMs < sunrise) return { isDay: false, dayLength, text: `Sunrise in ${formatDuration(sunrise - nowMs)}` };
+    if (nowMs < sunset) return { isDay: true, dayLength, text: `${formatDuration(sunset - nowMs)} of daylight left` };
+    const next = Number.isFinite(nextSunrise) ? nextSunrise : sunrise + 86400000;
+    return { isDay: false, dayLength, text: `Sunrise in ${formatDuration(next - nowMs)}` };
+};
+
+/** One-line summary of the week for the 7-day card. Temps already in display units. */
+export const getWeekSummary = (days) => {
+    if (!days?.length) return '';
+    const highs = days.map((d) => d.high).filter(Number.isFinite);
+    const lows = days.map((d) => d.low).filter(Number.isFinite);
+    if (!highs.length || !lows.length) return '';
+    const span = (arr) => (Math.min(...arr) === Math.max(...arr) ? `${arr[0]}°` : `${Math.min(...arr)}–${Math.max(...arr)}°`);
+    const wet = days.filter((d) => d.rain >= 30);
+    const labels = wet.map((d) => d.label);
+    const hasToday = labels[0] === 'Today';
+    const others = (hasToday ? labels.slice(1) : labels).slice(0, 3);
+    const more = labels.length - (hasToday ? 1 : 0) > 3 ? '…' : '';
+    let rain = 'Mostly dry.';
+    if (hasToday && others.length) rain = `Rain likely today and on ${others.join(', ')}${more}.`;
+    else if (hasToday) rain = 'Rain likely today.';
+    else if (others.length) rain = `Rain likely on ${others.join(', ')}${more}.`;
+    return `Highs ${span(highs)}, lows ${span(lows)}. ${rain}`;
+};

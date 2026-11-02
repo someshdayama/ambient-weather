@@ -41,8 +41,8 @@ export const fetchWeatherByCoords = async (lat, lon, { signal } = {}) => {
     const forecastParams = new URLSearchParams({
         latitude: lat,
         longitude: lon,
-        current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day,uv_index,surface_pressure,visibility,cloud_cover',
-        hourly: 'temperature_2m,precipitation_probability,weather_code,wind_speed_10m',
+        current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day,uv_index,surface_pressure,visibility,cloud_cover,dew_point_2m,wind_gusts_10m',
+        hourly: 'temperature_2m,precipitation_probability,weather_code,wind_speed_10m,is_day',
         daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
         minutely_15: 'precipitation',
         forecast_minutely_15: '12',
