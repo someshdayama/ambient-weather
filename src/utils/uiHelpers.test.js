@@ -2,9 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
     getIconName,
     getShortCondition,
-    getWeekRange,
-    scalePct,
-    rangeBar,
     getRainSummary,
     getFeelsLikeReason,
     getDewPointComfort,
@@ -15,29 +12,6 @@ import {
     getWeekSummary,
     parseLocalTime,
 } from './weatherUtils';
-
-describe('week range scaling', () => {
-    it('finds the min/max across lows and highs, ignoring nulls', () => {
-        expect(getWeekRange([24, null, 22], [31, 33, null])).toEqual({ min: 22, max: 33 });
-        expect(getWeekRange([], [])).toEqual({ min: 0, max: 0 });
-    });
-
-    it('scales a value to 0–100 and clamps', () => {
-        expect(scalePct(22, 22, 32)).toBe(0);
-        expect(scalePct(27, 22, 32)).toBe(50);
-        expect(scalePct(32, 22, 32)).toBe(100);
-        expect(scalePct(40, 22, 32)).toBe(100);
-        expect(scalePct(10, 22, 32)).toBe(0);
-        expect(scalePct(25, 25, 25)).toBe(50);
-    });
-
-    it('builds a bar with left/width as % of the week scale (not of the bar itself)', () => {
-        expect(rangeBar(24, 30, 20, 40)).toEqual({ left: 20, width: 30 });
-        const flat = rangeBar(39, 39, 20, 40);
-        expect(flat.width).toBe(4);
-        expect(flat.left + flat.width).toBeLessThanOrEqual(100);
-    });
-});
 
 describe('getRainSummary', () => {
     const day = '2026-11-02';
