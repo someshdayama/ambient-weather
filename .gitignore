@@ -27,3 +27,4 @@ dist-ssr
 AI.local.md
 .ai/settings.local.json
 dev-dist
+.netlify
