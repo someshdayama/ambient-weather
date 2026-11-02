@@ -51,7 +51,7 @@ function App() {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
                 className="app-wrapper"
             >
                 <WeatherParticles weatherTheme={weatherDetails.theme} />
