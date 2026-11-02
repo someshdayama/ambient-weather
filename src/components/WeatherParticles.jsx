@@ -6,6 +6,8 @@ import React, { useMemo } from 'react';
  */
 const WeatherParticles = ({ weatherTheme }) => {
     const particles = useMemo(() => {
+        const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (reduced) return [];
         const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
         const multiplier = isMobile ? 0.3 : 1; // Reduce particles by 70% on mobile
 
@@ -48,7 +50,7 @@ const WeatherParticles = ({ weatherTheme }) => {
     if (!particles.length) return null;
 
     return (
-        <div className="particles-container">
+        <div className="particles-container" aria-hidden="true">
             {weatherTheme === 'storm' && <div className="particle-lightning" />}
 
             {particles.map(p => {

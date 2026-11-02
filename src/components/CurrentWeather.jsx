@@ -1,104 +1,105 @@
 import React from 'react';
-import { Sun, Moon, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning, MapPin } from 'lucide-react';
+import { Sun, Moon, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning, MapPin, Umbrella } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getFeelsLikeComparison } from '../utils/weatherUtils';
+import { getFeelsLikeComparison, getNowcast, toTemp, toWind, windUnitLabel } from '../utils/weatherUtils';
 
 const Icons = { Sun, Moon, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning };
 
 /** Map icon name → CSS animation class for the icon wrapper */
 const iconAnimClass = {
-    Sun:           'icon-sun',
-    Moon:          '',
-    CloudSun:      'icon-cloud',
-    Cloud:         'icon-cloud',
-    CloudFog:      'icon-cloud',
-    CloudDrizzle:  'icon-rain',
-    CloudRain:     'icon-rain',
-    CloudSnow:     'icon-snow',
-    CloudLightning:'icon-storm',
+    Sun: 'icon-sun',
+    Moon: '',
+    CloudSun: 'icon-cloud',
+    Cloud: 'icon-cloud',
+    CloudFog: 'icon-cloud',
+    CloudDrizzle: 'icon-rain',
+    CloudRain: 'icon-rain',
+    CloudSnow: 'icon-snow',
+    CloudLightning: 'icon-storm',
 };
 
-const CurrentWeather = ({ current, daily, locationName, weatherDetails, time, timezone, unit }) => {
+const CurrentWeather = ({ current, daily, minutely, nowMs, locationName, weatherDetails, time, timezone, unit }) => {
     const IconComponent = Icons[weatherDetails.icon] || Icons.Sun;
     const animClass = iconAnimClass[weatherDetails.icon] || '';
 
     const formattedDate = time.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', timeZone: timezone });
     const displayTime = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone });
 
-    const toUnit = (c) => unit === 'F' ? Math.round((c * 9 / 5) + 32) : Math.round(c);
-    const tempDisplay   = toUnit(current.temperature_2m);
-    const feelsDisplay  = toUnit(current.apparent_temperature);
-    const maxDisplay    = daily ? toUnit(daily.temperature_2m_max[0]) : null;
-    const minDisplay    = daily ? toUnit(daily.temperature_2m_min[0]) : null;
-    const comparisonText = getFeelsLikeComparison(current.temperature_2m, current.apparent_temperature);
+    const tempDisplay = toTemp(current.temperature_2m, unit);
+    const feelsDisplay = toTemp(current.apparent_temperature, unit);
+    const maxDisplay = daily ? toTemp(daily.temperature_2m_max[0], unit) : null;
+    const minDisplay = daily ? toTemp(daily.temperature_2m_min[0], unit) : null;
+    const comparisonText = getFeelsLikeComparison(tempDisplay, feelsDisplay);
+    const nowcast = getNowcast(minutely, nowMs);
 
     return (
-        <motion.div
+        <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: 'auto', marginBottom: '7.5rem', zIndex: 10 }}
+            transition={{ delay: 0.15, duration: 0.5, ease: 'easeOut' }}
+            className="current-weather"
+            aria-label={`Current weather in ${locationName}`}
         >
-            {/* Location + time */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.9 }}>
-                <MapPin size={17} strokeWidth={2} />
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '0.3px' }}>{locationName}</h2>
+            <div className="cw-location">
+                <MapPin size={17} strokeWidth={2} aria-hidden="true" />
+                <h2>{locationName}</h2>
             </div>
-            <p style={{ opacity: 0.6, fontSize: '0.9rem', marginLeft: '23px' }}>
+            <p className="cw-date">
                 {formattedDate} &bull; {displayTime}
             </p>
 
-            {/* Big temp + animated icon */}
-            <motion.div
-                whileHover={{ scale: 1.03 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', margin: '1.5rem 0 0.5rem' }}
-            >
-                <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.15)', filter: 'blur(20px)', borderRadius: '50%' }} />
+            <div className="cw-main">
+                <div className="cw-icon-wrap" aria-hidden="true">
+                    <div className="cw-icon-glow" />
                     <div className={animClass} style={{ position: 'relative', zIndex: 2, display: 'inline-block' }}>
                         <IconComponent size={68} strokeWidth={1.4} />
                     </div>
                 </div>
                 <div>
-                    <div style={{ fontSize: '5.5rem', fontWeight: 700, letterSpacing: '-4px', lineHeight: 1 }}>
+                    <div className="cw-temp" aria-label={`${tempDisplay} degrees ${unit === 'F' ? 'Fahrenheit' : 'Celsius'}`}>
                         {tempDisplay}°
                     </div>
-                    {/* High / Low */}
                     {maxDisplay !== null && (
-                        <div style={{ fontSize: '0.9rem', opacity: 0.7, marginTop: '4px', letterSpacing: '0.5px', display: 'flex', gap: '10px' }}>
-                            <span>↑ {maxDisplay}°</span>
-                            <span>↓ {minDisplay}°</span>
+                        <div className="cw-hilo">
+                            <span aria-label={`High ${maxDisplay}`}>↑ {maxDisplay}°</span>
+                            <span aria-label={`Low ${minDisplay}`}>↓ {minDisplay}°</span>
                         </div>
                     )}
                 </div>
-            </motion.div>
+            </div>
 
-            {/* Condition label */}
-            <div style={{ fontSize: '1.3rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--text-primary)', opacity: 0.8 }} />
+            <div className="cw-condition">
+                <span className="cw-dot" aria-hidden="true" />
                 {weatherDetails.text}
             </div>
- 
-            {/* Micro stats row */}
+
+            {nowcast.text && (
+                <div className={`nowcast nowcast-${nowcast.state}`} role="status">
+                    <Umbrella size={14} aria-hidden="true" />
+                    {nowcast.text}
+                </div>
+            )}
+
             <div className="current-micro-stats">
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{ opacity: 0.55, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Feels Like</div>
-                    <div style={{ fontWeight: 600, fontSize: '1.05rem' }}>{feelsDisplay}°</div>
-                    <div style={{ fontSize: '0.65rem', opacity: 0.5, marginTop: '2px', maxWidth: '80px' }}>{comparisonText}</div>
+                <div className="micro-stat">
+                    <div className="micro-label">Feels Like</div>
+                    <div className="micro-value">{feelsDisplay}°</div>
+                    <div className="micro-sub">{comparisonText}</div>
                 </div>
                 <div className="current-micro-divider" />
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{ opacity: 0.55, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Humidity</div>
-                    <div style={{ fontWeight: 600, fontSize: '1.05rem' }}>{current.relative_humidity_2m}%</div>
+                <div className="micro-stat">
+                    <div className="micro-label">Humidity</div>
+                    <div className="micro-value">{current.relative_humidity_2m}%</div>
                 </div>
                 <div className="current-micro-divider" />
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{ opacity: 0.55, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Wind</div>
-                    <div style={{ fontWeight: 600, fontSize: '1.05rem' }}>{Math.round(current.wind_speed_10m)} <span style={{ fontSize: '0.75rem' }}>km/h</span></div>
+                <div className="micro-stat">
+                    <div className="micro-label">Wind</div>
+                    <div className="micro-value">
+                        {toWind(current.wind_speed_10m, unit)} <span className="micro-unit">{windUnitLabel(unit)}</span>
+                    </div>
                 </div>
             </div>
-        </motion.div>
+        </motion.section>
     );
 };
 

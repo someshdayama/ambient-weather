@@ -1,12 +1,12 @@
 import React from 'react';
 import { Sun, Moon, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getWeatherDetails, formatDay } from '../utils/weatherUtils';
+import { getWeatherDetails, formatDay, toTemp } from '../utils/weatherUtils';
 
 const Icons = { Sun, Moon, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning };
 
-const Forecast = ({ daily, unit, loading, theme }) => {
-    const toUnit = (c) => unit === 'F' ? Math.round((c * 9 / 5) + 32) : Math.round(c);
+const Forecast = ({ daily, unit, loading }) => {
+    const toUnit = (c) => toTemp(c, unit);
 
     if (loading || !daily) {
         return (
@@ -64,11 +64,11 @@ const Forecast = ({ daily, unit, loading, theme }) => {
                         </div>
 
                         {/* Icon */}
-                        <IconComp size={20} strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.85 }} />
+                        <IconComp size={20} strokeWidth={1.5} style={{ flexShrink: 0, opacity: 0.85 }} aria-label={details.text} />
 
                         {/* Rain chance */}
-                        <div style={{ width: '36px', flexShrink: 0, fontSize: '0.75rem', color: '#60a5fa', fontWeight: 600, textAlign: 'right' }}>
-                            {precip > 0 ? `${precip}%` : ''}
+                        <div style={{ width: '36px', flexShrink: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)', fontWeight: 600, textAlign: 'right' }}>
+                            {precip > 0 ? <span aria-label={`${precip}% chance of rain`}>{precip}%</span> : ''}
                         </div>
 
                         {/* Temp range bar */}
@@ -81,8 +81,7 @@ const Forecast = ({ daily, unit, loading, theme }) => {
                                     position: 'absolute',
                                     height: '100%',
                                     borderRadius: '3px',
-                                    background: 'linear-gradient(90deg, #60a5fa, #f97316)',
-                                    boxShadow: '0 0 6px rgba(249,115,22,0.3)',
+                                    background: 'linear-gradient(90deg, rgba(255,255,255,0.35), #ffffff)',
                                     left: 0,
                                     top: 0,
                                 }}

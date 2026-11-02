@@ -1,64 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Tooltip } from 'react-leaflet';
-import { motion } from 'framer-motion';
-import { LocateFixed } from 'lucide-react';
+import { LocateFixed, CloudRain } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { fetchRadarTileUrl } from '../api/weatherApi';
 
 delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconUrl: markerIcon,
-    iconRetinaUrl: markerIcon2x,
-    shadowUrl: markerShadow,
-});
+L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
-// Custom favorite star icon for Leaflet markers
-const favMarkerIcon = new L.Icon({
-    iconUrl: markerIcon,
-    iconRetinaUrl: markerIcon2x,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-});
+// Minimal white dot markers (no blue Leaflet pins).
+const activeIcon = L.divIcon({ className: 'map-dot map-dot-active', iconSize: [18, 18], iconAnchor: [9, 9] });
+const favIcon = L.divIcon({ className: 'map-dot map-dot-fav', iconSize: [12, 12], iconAnchor: [6, 6] });
 
 const MapUpdater = ({ center }) => {
     const map = useMap();
     useEffect(() => {
-        map.flyTo(center, map.getZoom(), { duration: 1.5 });
+        map.flyTo(center, map.getZoom(), { duration: 1.2 });
     }, [center, map]);
     return null;
 };
 
 const MapEvents = ({ onClick }) => {
-    useMapEvents({
-        click(e) {
-            if (onClick) {
-                onClick(e.latlng.lat, e.latlng.lng);
-            }
-        }
-    });
+    useMapEvents({ click: (e) => onClick?.(e.latlng.lat, e.latlng.lng) });
     return null;
 };
 
 // CARTO's anonymous raster basemaps now stamp every tile with "API KEY REQUIRED".
-// Esri's public canvas and imagery services serve the same light, dark, and satellite looks without a key.
+// Esri's public canvas and imagery services work without a key.
 const ESRI_ATTRIBUTION = 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS user community';
 
 const MAP_STYLES = {
-    light: {
-        attribution: ESRI_ATTRIBUTION,
-        urls: [
-            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
-        ],
-    },
     dark: {
+        label: 'Dark',
         attribution: ESRI_ATTRIBUTION,
         urls: [
             'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
@@ -66,77 +42,47 @@ const MAP_STYLES = {
         ],
     },
     satellite: {
+        label: 'Satellite',
         attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
-        urls: [
-            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        ],
+        urls: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
     },
 };
 
-const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
-    const isLight = theme === 'light';
+const RADAR_ATTRIBUTION = 'Radar &copy; <a href="https://www.rainviewer.com/api.html">RainViewer</a>';
+const RADAR_REFRESH_MS = 10 * 60 * 1000;
 
-    // Manage active coords locally for instant flyTo feedback on map clicks
+const WeatherMap = ({ lat, lon, onLocationSelect, onGpsRequest, gpsState, favorites = [] }) => {
     const [activeCoords, setActiveCoords] = useState([lat, lon]);
+    const [mapStyle, setMapStyle] = useState('dark');
+    const [radarOn, setRadarOn] = useState(true);
+    const [radar, setRadar] = useState(null);
 
-    // Keep activeCoords in sync when parent coordinate changes (e.g. from GPS or search)
+    useEffect(() => setActiveCoords([lat, lon]), [lat, lon]);
+
+    // Latest radar frame; refreshed every 10 min while the radar layer is on.
     useEffect(() => {
-        setActiveCoords([lat, lon]);
-    }, [lat, lon]);
-
-    // Map style state
-    const [mapStyle, setMapStyle] = useState(theme === 'dark' ? 'dark' : 'light');
-
-    // Sync style with main theme
-    useEffect(() => {
-        setMapStyle(theme === 'dark' ? 'dark' : 'light');
-    }, [theme]);
+        if (!radarOn) return undefined;
+        const controller = new AbortController();
+        const load = () => fetchRadarTileUrl({ signal: controller.signal }).then((r) => r && setRadar(r));
+        load();
+        const id = setInterval(load, RADAR_REFRESH_MS);
+        return () => {
+            controller.abort();
+            clearInterval(id);
+        };
+    }, [radarOn]);
 
     const activeMapStyle = MAP_STYLES[mapStyle];
+    const locating = gpsState === 'locating';
 
     const handleMapClick = (clickLat, clickLon) => {
         setActiveCoords([clickLat, clickLon]);
-        if (onLocationSelect) {
-            onLocationSelect(clickLat, clickLon, null);
-        }
-    };
-
-    const handleLocate = () => {
-        if ('geolocation' in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    setActiveCoords([latitude, longitude]);
-                    if (onLocationSelect) {
-                        onLocationSelect(latitude, longitude, null);
-                    }
-                },
-                (err) => {
-                    console.error('Geolocation error:', err);
-                    alert('Unable to retrieve your location. Please check browser permissions.');
-                }
-            );
-        }
+        onLocationSelect?.(clickLat, clickLon, null);
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            style={{
-                width: '100%',
-                height: '350px',
-                borderRadius: '24px',
-                overflow: 'hidden',
-                position: 'relative',
-                zIndex: 10,
-                marginTop: '1.5rem',
-                border: '1px solid var(--glass-border)',
-                boxShadow: 'var(--glass-shadow)'
-            }}
-        >
-            <MapContainer center={activeCoords} zoom={11} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+        <div className="map-shell">
+            <MapContainer center={activeCoords} zoom={9} style={{ height: '100%', width: '100%' }} zoomControl={false} attributionControl>
                 {activeMapStyle.urls.map((url, index) => (
                     <TileLayer
                         key={`${mapStyle}-${index}`}
@@ -146,30 +92,36 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
                     />
                 ))}
 
-                {/* Current Active Location Marker */}
-                <Marker position={activeCoords}>
-                    <Tooltip direction="top" offset={[0, -10]} opacity={0.95} permanent>
-                        <span style={{ fontWeight: 700, color: 'var(--accent-color)', fontFamily: 'Outfit, sans-serif' }}>📍 Active Location</span>
+                {radarOn && radar && (
+                    <TileLayer
+                        key={radar.url}
+                        url={radar.url}
+                        attribution={RADAR_ATTRIBUTION}
+                        opacity={0.7}
+                        maxNativeZoom={7}
+                        maxZoom={19}
+                        zIndex={5}
+                    />
+                )}
+
+                <Marker position={activeCoords} icon={activeIcon} keyboard={false}>
+                    <Tooltip direction="top" offset={[0, -10]} opacity={1} className="map-tooltip">
+                        Selected location
                     </Tooltip>
                 </Marker>
 
-                {/* Favorite Cities Markers */}
-                {favorites.map((fav, i) => {
+                {favorites.map((fav) => {
                     const isCurrent = Math.abs(fav.lat - lat) < 0.01 && Math.abs(fav.lon - lon) < 0.01;
                     if (isCurrent) return null;
                     return (
                         <Marker
-                            key={`fav-${i}`}
+                            key={fav.name}
                             position={[fav.lat, fav.lon]}
-                            icon={favMarkerIcon}
-                            eventHandlers={{
-                                click: () => {
-                                    if (onLocationSelect) onLocationSelect(fav.lat, fav.lon, fav.name);
-                                }
-                            }}
+                            icon={favIcon}
+                            eventHandlers={{ click: () => onLocationSelect?.(fav.lat, fav.lon, fav.name) }}
                         >
-                            <Tooltip direction="top" offset={[0, -10]} opacity={0.9}>
-                                <span style={{ fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>🌟 {fav.name.split(',')[0]}</span>
+                            <Tooltip direction="top" offset={[0, -8]} opacity={1} className="map-tooltip">
+                                {fav.name.split(',')[0]}
                             </Tooltip>
                         </Marker>
                     );
@@ -179,74 +131,40 @@ const WeatherMap = ({ lat, lon, theme, onLocationSelect, favorites = [] }) => {
                 <MapEvents onClick={handleMapClick} />
             </MapContainer>
 
-            {/* Float Style Selector (Top-Left) */}
-            <div style={{
-                position: 'absolute',
-                top: '15px',
-                left: '15px',
-                zIndex: 1000,
-                display: 'flex',
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '14px',
-                padding: '3px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-            }}>
-                {['light', 'dark', 'satellite'].map((style) => (
+            <div className="map-controls" role="group" aria-label="Map layers">
+                {Object.entries(MAP_STYLES).map(([key, s]) => (
                     <button
-                        key={style}
-                        onClick={() => setMapStyle(style)}
-                        style={{
-                            padding: '6px 12px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            background: mapStyle === style
-                                ? (isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.15)')
-                                : 'transparent',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            textTransform: 'capitalize',
-                            fontFamily: 'Outfit, sans-serif'
-                        }}
+                        type="button"
+                        key={key}
+                        className={`map-chip ${mapStyle === key ? 'active' : ''}`}
+                        onClick={() => setMapStyle(key)}
+                        aria-pressed={mapStyle === key}
                     >
-                        {style}
+                        {s.label}
                     </button>
                 ))}
+                <button
+                    type="button"
+                    className={`map-chip ${radarOn ? 'active' : ''}`}
+                    onClick={() => setRadarOn((v) => !v)}
+                    aria-pressed={radarOn}
+                    title={radar?.time ? `Radar frame ${new Date(radar.time * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Rain radar'}
+                >
+                    <CloudRain size={12} aria-hidden="true" /> Radar
+                </button>
             </div>
 
-            {/* Locate button */}
-            <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleLocate}
-                title="Use Current Location"
-                style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    right: '20px',
-                    zIndex: 1000,
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    background: 'var(--glass-bg)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid var(--glass-border)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-primary)',
-                    outline: 'none'
-                }}
+            <button
+                type="button"
+                onClick={onGpsRequest}
+                className={`map-locate icon-btn ${locating ? 'locating' : ''}`}
+                aria-label={locating ? 'Finding your location' : 'Use my location'}
+                aria-busy={locating}
+                title="Use my location"
             >
-                <LocateFixed size={18} />
-            </motion.button>
-        </motion.div>
+                <LocateFixed size={18} aria-hidden="true" />
+            </button>
+        </div>
     );
 };
 

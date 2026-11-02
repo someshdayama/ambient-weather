@@ -7,7 +7,10 @@
 - **Framework**: Vite + React 18
 - **Icons**: Lucide React
 - **Language**: JavaScript (JSX)
-- **Styling**: Vanilla CSS
+- **Styling**: Vanilla CSS (true black, white text, amber accent only where meaningful)
+- **Data**: Open-Meteo (forecast, minutely_15, us_aqi, geocoding), BigDataCloud reverse geocode, RainViewer radar
+- **PWA**: vite-plugin-pwa (Workbox) — the only service worker
+- **Tests/CI**: Vitest + ESLint, GitHub Actions
 
 ## Project Structure
 
@@ -17,7 +20,7 @@ src/
 ├── main.jsx         # Entry point
 ├── index.css        # Global styles
 ├── api/             # Weather API integration
-├── assets/          # Static assets
+├── hooks/           # useWeather (state, caching, GPS)
 ├── components/      # UI components
 └── utils/           # Utility functions
 ```
@@ -28,6 +31,9 @@ src/
 npm run dev      # Start dev server
 npm run build    # Production build
 npm run preview  # Preview production build
+npm run lint     # ESLint
+npm test         # Vitest
+npm run size     # Bundle budget (after build)
 ```
 
 ## Conventions
@@ -38,4 +44,6 @@ npm run preview  # Preview production build
 - Use Lucide React for all icons
 - CSS follows BEM-like naming within component-scoped styles
 - Responsive design: mobile-first approach
-- Premium UI aesthetic: glassmorphism, gradients, micro-animations
+- Minimal dark UI: no grey/blue accents; amber/red only for warnings (AQI, UV, heat)
+- Parse Open-Meteo times with `parseLocalTime`, never `new Date(string)`
+- Respect `prefers-reduced-motion`; interactive elements are real `<button>`s with labels

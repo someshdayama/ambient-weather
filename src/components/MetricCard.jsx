@@ -8,6 +8,8 @@ const MetricCard = ({ title, icon: Icon, delay = 0, children, style = {} }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, type: 'spring', stiffness: 120, damping: 18 }}
             className="glass-panel metric-card"
+            role="group"
+            aria-label={title}
             style={{
                 padding: '1.8rem',
                 display: 'flex',
@@ -30,11 +32,11 @@ const MetricCard = ({ title, icon: Icon, delay = 0, children, style = {} }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'var(--accent-glow)',
+                    background: 'rgba(255,255,255,0.06)',
                     borderRadius: '10px',
                     border: '1px solid rgba(255,255,255,0.1)',
                 }}>
-                    <Icon size={16} strokeWidth={2} color="var(--accent-color)" />
+                    <Icon size={16} strokeWidth={2} color="#ffffff" aria-hidden="true" />
                 </div>
                 <span style={{
                     fontSize: '0.8rem',

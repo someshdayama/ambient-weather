@@ -1,13 +1,13 @@
 import React from 'react';
 
 const SkylineVector = ({ showNightBg }) => {
-    const fill1 = showNightBg ? '#060d14' : '#1c4a96';
-    const fill2 = showNightBg ? '#000000' : '#0a2a61';
+    const fill1 = showNightBg ? '#0b0b0b' : '#141414';
+    const fill2 = showNightBg ? '#000000' : '#070707';
     const opacity1 = showNightBg ? 0.4 : 0.6;
     const opacity2 = showNightBg ? 0.7 : 0.4;
 
     return (
-        <div style={{
+        <div aria-hidden="true" style={{
             position: 'absolute',
             bottom: 0, left: 0, right: 0,
             height: '250px',

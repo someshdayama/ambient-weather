@@ -1,27 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Search, Sun, Moon, Cloud, Navigation, Star, X } from 'lucide-react';
+import { Search, Sun, Moon, Cloud, Navigation, Star, X, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getWeatherDetails } from '../utils/weatherUtils';
+import { getWeatherDetails, parseLocalTime, locationNowMs, formatClock, formatAgo } from '../utils/weatherUtils';
 import { searchCity } from '../api/weatherApi';
 import SkylineVector from './vectors/SkylineVector';
 import CurrentWeather from './CurrentWeather';
 
-const FAVORITES_KEY = 'ambient_weather_favorites';
+const MAX_FAVORITES = 5;
+const cityLabel = (city) => `${city.name}${city.admin1 ? `, ${city.admin1}` : ''}`;
 
-const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, onLocationSelect, onGpsRequest, loading, favorites = [], setFavorites }) => {
-    const [time, setTime] = useState(new Date());
+const Sidebar = ({ weather, unit, setUnit, favorites = [], setFavorites }) => {
+    const { weatherData, location, fetchedAt, isStale, loading, refreshing, gpsState, requestGps, selectLocation, refresh } = weather;
+    const current = weatherData?.current;
+    const daily = weatherData?.daily;
+    const timezone = weatherData?.timezone || 'Asia/Kolkata';
+    const utcOffset = weatherData?.utc_offset_seconds ?? 19800;
+
+    const [time, setTime] = useState(() => new Date());
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [activeIndex, setActiveIndex] = useState(-1);
     const [isSearching, setIsSearching] = useState(false);
-    const [isLocating, setIsLocating] = useState(false);
+    const [searchError, setSearchError] = useState(null);
     const searchRef = useRef(null);
     const searchTimeoutRef = useRef(null);
+    const searchAbortRef = useRef(null);
 
     useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 30000); // 30s interval
+        const timer = setInterval(() => setTime(new Date()), 30000);
         return () => {
             clearInterval(timer);
-            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+            clearTimeout(searchTimeoutRef.current);
+            searchAbortRef.current?.abort();
         };
     }, []);
 
@@ -29,136 +39,155 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, onLoca
         const handleClickOutside = (e) => {
             if (searchRef.current && !searchRef.current.contains(e.target)) setSearchResults([]);
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('pointerdown', handleClickOutside);
+        return () => document.removeEventListener('pointerdown', handleClickOutside);
     }, []);
+
+    const closeResults = () => {
+        setSearchResults([]);
+        setActiveIndex(-1);
+    };
 
     const handleSearch = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
-
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
+        setSearchError(null);
+        clearTimeout(searchTimeoutRef.current);
 
         if (query.trim().length > 2) {
             searchTimeoutRef.current = setTimeout(async () => {
+                searchAbortRef.current?.abort();
+                const controller = new AbortController();
+                searchAbortRef.current = controller;
                 setIsSearching(true);
                 try {
-                    const results = await searchCity(query);
+                    const results = await searchCity(query, { signal: controller.signal });
                     setSearchResults(results);
-                } catch { setSearchResults([]); }
-                finally { setIsSearching(false); }
+                    setActiveIndex(-1);
+                    if (!results.length) setSearchError('No matching places');
+                } catch (err) {
+                    if (err?.name === 'AbortError') return;
+                    setSearchResults([]);
+                    setSearchError(err.message);
+                } finally {
+                    if (searchAbortRef.current === controller) setIsSearching(false);
+                }
             }, 300);
         } else {
-            setSearchResults([]);
+            closeResults();
         }
     };
 
     const handleSelectCity = (city) => {
-        const name = `${city.name}${city.admin1 ? `, ${city.admin1}` : ''}`;
-        onLocationSelect(city.latitude, city.longitude, name);
+        selectLocation(city.latitude, city.longitude, cityLabel(city));
         setSearchQuery('');
-        setSearchResults([]);
+        closeResults();
     };
 
-    const handleGps = () => {
-        setIsLocating(true);
-        onGpsRequest();
-        setTimeout(() => setIsLocating(false), 3000);
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            closeResults();
+            return;
+        }
+        if (!searchResults.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActiveIndex((i) => (i + 1) % searchResults.length);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActiveIndex((i) => (i <= 0 ? searchResults.length - 1 : i - 1));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSelectCity(searchResults[Math.max(0, activeIndex)]);
+        }
     };
 
-    const saveFavorite = (e, city) => {
-        e.stopPropagation();
-        const name = `${city.name}${city.admin1 ? `, ${city.admin1}` : ''}`;
+    const isFavorite = (name) => favorites.some((f) => f.name === name);
+
+    const toggleFavorite = (city) => {
+        const name = cityLabel(city);
+        if (isFavorite(name)) {
+            setFavorites(favorites.filter((f) => f.name !== name));
+            return;
+        }
         const fav = { name, lat: city.latitude, lon: city.longitude };
-        const updated = [fav, ...favorites.filter(f => f.name !== name)].slice(0, 5);
-        setFavorites(updated);
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+        setFavorites([fav, ...favorites].slice(0, MAX_FAVORITES));
     };
 
-    const removeFavorite = (e, name) => {
-        e.stopPropagation();
-        const updated = favorites.filter(f => f.name !== name);
-        setFavorites(updated);
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
-    };
+    const removeFavorite = (name) => setFavorites(favorites.filter((f) => f.name !== name));
 
     const details = current ? getWeatherDetails(current.weather_code, current.is_day) : { theme: 'clear-night' };
     const isDay = current?.is_day === 1;
-    const showNightBg = !isDay;
 
-    // Sun arc math
-    const localTimeStr = time.toLocaleString('en-US', { timeZone: timezone });
-    const localMs = new Date(localTimeStr).getTime();
-    const parseLocalStr = (str) => new Date(str.replace('T', ' ')).getTime();
-    const todaySunriseMs = daily?.sunrise?.[0] ? parseLocalStr(daily.sunrise[0]) : localMs - 12 * 3600000;
-    const todaySunsetMs  = daily?.sunset?.[0]  ? parseLocalStr(daily.sunset[0])  : localMs + 12 * 3600000;
-    const formatSunTime  = (ms) => new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    // ── Sun arc: everything in the location's wall-clock (see parseLocalTime) ──
+    const nowMs = locationNowMs(utcOffset, time.getTime());
+    const sunrise0 = parseLocalTime(daily?.sunrise?.[0]);
+    const sunset0 = parseLocalTime(daily?.sunset?.[0]);
+    const sunrise1 = parseLocalTime(daily?.sunrise?.[1]);
+    const todaySunriseMs = Number.isFinite(sunrise0) ? sunrise0 : nowMs - 12 * 3600000;
+    const todaySunsetMs = Number.isFinite(sunset0) ? sunset0 : nowMs + 12 * 3600000;
 
     let isDaytime = true, progress = 0, topLabel = '', bottomLabel = '', topTime = '', bottomTime = '';
-    if (localMs >= todaySunriseMs && localMs < todaySunsetMs) {
-        isDaytime = true; progress = (localMs - todaySunriseMs) / (todaySunsetMs - todaySunriseMs);
+    if (nowMs >= todaySunriseMs && nowMs < todaySunsetMs) {
+        progress = (nowMs - todaySunriseMs) / (todaySunsetMs - todaySunriseMs);
         topLabel = 'Sunrise'; bottomLabel = 'Sunset';
-        topTime = formatSunTime(todaySunriseMs); bottomTime = formatSunTime(todaySunsetMs);
+        topTime = formatClock(todaySunriseMs); bottomTime = formatClock(todaySunsetMs);
     } else {
         isDaytime = false; topLabel = 'Sunset'; bottomLabel = 'Sunrise';
-        if (localMs < todaySunriseMs) {
+        if (nowMs < todaySunriseMs) {
             const ySunset = todaySunsetMs - 86400000;
-            progress = (localMs - ySunset) / (todaySunriseMs - ySunset);
-            topTime = formatSunTime(ySunset); bottomTime = formatSunTime(todaySunriseMs);
+            progress = (nowMs - ySunset) / (todaySunriseMs - ySunset);
+            topTime = formatClock(ySunset); bottomTime = formatClock(todaySunriseMs);
         } else {
-            const tSunrise = daily?.sunrise?.[1] ? parseLocalStr(daily.sunrise[1]) : todaySunriseMs + 86400000;
-            progress = (localMs - todaySunsetMs) / (tSunrise - todaySunsetMs);
-            topTime = formatSunTime(todaySunsetMs); bottomTime = formatSunTime(tSunrise);
+            const tSunrise = Number.isFinite(sunrise1) ? sunrise1 : todaySunriseMs + 86400000;
+            progress = (nowMs - todaySunsetMs) / (tSunrise - todaySunsetMs);
+            topTime = formatClock(todaySunsetMs); bottomTime = formatClock(tSunrise);
         }
     }
-    progress = Math.max(0, Math.min(1, progress));
+    progress = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
     const angle = Math.PI - progress * Math.PI;
     const sunX = 140 + 120 * Math.cos(angle);
     const sunY = 80 - 60 * Math.sin(angle);
 
-
+    const locating = gpsState === 'locating';
+    const listId = 'city-search-results';
 
     return (
-        <motion.div
-            initial={{ x: -320, opacity: 0 }}
+        <motion.aside
+            initial={{ x: -40, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 22, stiffness: 120 }}
             className="sidebar"
+            aria-label="Current weather and location"
         >
             {/* ── Header ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', zIndex: 60, position: 'relative' }}>
-                <motion.h1
-                    whileHover={{ scale: 1.04 }}
-                    style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'default' }}
-                >
-                    <Cloud size={22} fill="currentColor" strokeWidth={0} /> Ambient Weather
-                </motion.h1>
+            <div className="sidebar-header">
+                <h1 className="brand">
+                    <Cloud size={22} fill="currentColor" strokeWidth={0} aria-hidden="true" /> Ambient Weather
+                </h1>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {/* GPS button */}
+                <div className="sidebar-actions">
                     <button
-                        className={`gps-btn ${isLocating ? 'locating' : ''}`}
-                        onClick={handleGps}
+                        type="button"
+                        className={`icon-btn ${locating ? 'locating' : ''}`}
+                        onClick={requestGps}
+                        aria-label={locating ? 'Finding your location' : 'Use my location'}
+                        aria-busy={locating}
                         title="Use my location"
                     >
-                        <Navigation size={16} fill={isLocating ? 'currentColor' : 'none'} />
+                        <Navigation size={16} fill={locating ? 'currentColor' : 'none'} aria-hidden="true" />
                     </button>
 
-
-
-                    {/* Pill C/F toggle */}
-                    <div className="unit-toggle">
-                        <div
-                            className="unit-toggle-slider"
-                            style={{ transform: unit === 'F' ? 'translateX(32px)' : 'translateX(0px)' }}
-                        />
-                        {['C', 'F'].map(u => (
+                    <div className="unit-toggle" role="group" aria-label="Units">
+                        <div className="unit-toggle-slider" style={{ transform: unit === 'F' ? 'translateX(34px)' : 'translateX(0px)' }} aria-hidden="true" />
+                        {['C', 'F'].map((u) => (
                             <button
+                                type="button"
                                 key={u}
                                 className={`unit-toggle-btn ${unit === u ? 'active' : ''}`}
                                 onClick={() => setUnit(u)}
+                                aria-pressed={unit === u}
+                                aria-label={u === 'C' ? 'Celsius, km/h' : 'Fahrenheit, mph'}
                             >
                                 °{u}
                             </button>
@@ -167,82 +196,96 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, onLoca
                 </div>
             </div>
 
-            {/* ── Search bar ── */}
-            <div ref={searchRef} style={{ position: 'relative', marginBottom: '1.2rem', zIndex: 60 }}>
+            {/* ── Search ── */}
+            <div ref={searchRef} className="search-wrap">
                 <div className="sidebar-search-container">
-                    <Search size={16} style={{ marginRight: '10px', opacity: 0.7, flexShrink: 0 }} />
+                    <Search size={16} className="search-icon" aria-hidden="true" />
                     <input
-                        type="text"
-                        placeholder="Search city..."
+                        type="search"
+                        placeholder="Search city…"
                         value={searchQuery}
                         onChange={handleSearch}
+                        onKeyDown={handleKeyDown}
                         className="sidebar-search-input"
+                        aria-label="Search city"
+                        role="combobox"
+                        aria-expanded={searchResults.length > 0}
+                        aria-controls={listId}
+                        aria-autocomplete="list"
+                        aria-activedescendant={activeIndex >= 0 ? `city-opt-${activeIndex}` : undefined}
+                        autoComplete="off"
+                        enterKeyHint="search"
                     />
-                    {isSearching && (
-                        <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
-                            style={{
-                                width: 14,
-                                height: 14,
-                                border: '2px solid var(--input-border)',
-                                borderTopColor: 'var(--text-primary)',
-                                borderRadius: '50%',
-                                flexShrink: 0
-                            }}
-                        />
-                    )}
+                    {isSearching && <span className="spinner" aria-label="Searching" />}
                 </div>
+
+                {searchError && !isSearching && searchQuery.trim().length > 2 && !searchResults.length && (
+                    <div className="search-hint" role="status">{searchError}</div>
+                )}
 
                 <AnimatePresence>
                     {searchResults.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                        <motion.ul
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.15 }}
                             className="search-results-panel"
+                            id={listId}
+                            role="listbox"
+                            aria-label="Matching places"
                         >
-                            {searchResults.map((city) => (
-                                <div
-                                    key={city.id}
-                                    className="search-result-item"
-                                    onClick={() => handleSelectCity(city)}
-                                >
-                                    <span>{city.name}{city.admin1 ? `, ${city.admin1}` : ''} <span style={{ opacity: 0.4 }}>{city.country_code}</span></span>
-                                    <Star
-                                        size={15}
-                                        style={{ flexShrink: 0, color: '#f59e0b', cursor: 'pointer' }}
-                                        onClick={(e) => saveFavorite(e, city)}
-                                    />
-                                </div>
-                            ))}
-                        </motion.div>
+                            {searchResults.map((city, i) => {
+                                const name = cityLabel(city);
+                                const fav = isFavorite(name);
+                                return (
+                                    <li
+                                        key={city.id}
+                                        id={`city-opt-${i}`}
+                                        role="option"
+                                        aria-selected={i === activeIndex}
+                                        className={`search-result-item ${i === activeIndex ? 'active' : ''}`}
+                                    >
+                                        <button type="button" className="search-result-main" onClick={() => handleSelectCity(city)}>
+                                            {name} <span className="muted">{city.country_code}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="icon-btn-plain"
+                                            onClick={() => toggleFavorite(city)}
+                                            aria-label={fav ? `Remove ${name} from favourites` : `Save ${name} to favourites`}
+                                            aria-pressed={fav}
+                                        >
+                                            <Star size={15} fill={fav ? 'currentColor' : 'none'} aria-hidden="true" />
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </motion.ul>
                     )}
                 </AnimatePresence>
             </div>
 
-            {/* ── Favorite chips ── */}
+            {/* ── Favourites ── */}
             {favorites.length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1.2rem', zIndex: 55 }}>
-                    {favorites.map(fav => (
-                        <div key={fav.name} className="fav-chip" onClick={() => onLocationSelect(fav.lat, fav.lon, fav.name)}>
-                            <Star size={11} fill="currentColor" style={{ color: '#fbbf24' }} />
-                            {fav.name.split(',')[0]}
-                            <span
-                                onClick={(e) => removeFavorite(e, fav.name)}
-                                style={{ opacity: 0.5, marginLeft: '2px', lineHeight: 1, cursor: 'pointer' }}
-                            >
-                                <X size={10} />
-                            </span>
-                        </div>
+                <ul className="fav-list" aria-label="Favourite places">
+                    {favorites.map((fav) => (
+                        <li key={fav.name} className={`fav-chip ${location?.name === fav.name ? 'active' : ''}`}>
+                            <button type="button" className="fav-chip-main" onClick={() => selectLocation(fav.lat, fav.lon, fav.name)}>
+                                <Star size={11} fill="currentColor" aria-hidden="true" />
+                                {fav.name.split(',')[0]}
+                            </button>
+                            <button type="button" className="fav-chip-remove" onClick={() => removeFavorite(fav.name)} aria-label={`Remove ${fav.name} from favourites`}>
+                                <X size={11} aria-hidden="true" />
+                            </button>
+                        </li>
                     ))}
-                </div>
+                </ul>
             )}
 
-            {/* ── Current Weather ── */}
-            {loading ? (
-                <div style={{ marginTop: 'auto', marginBottom: '8rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* ── Current weather ── */}
+            {loading && !current ? (
+                <div className="current-skeleton" aria-hidden="true">
                     <div className="skeleton" style={{ height: '28px', width: '60%' }} />
                     <div className="skeleton" style={{ height: '90px', width: '80%', marginTop: '16px' }} />
                     <div className="skeleton" style={{ height: '20px', width: '50%' }} />
@@ -252,7 +295,9 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, onLoca
                 <CurrentWeather
                     current={current}
                     daily={daily}
-                    locationName={locationName}
+                    minutely={weatherData?.minutely_15}
+                    nowMs={nowMs}
+                    locationName={location?.name}
                     weatherDetails={details}
                     time={time}
                     timezone={timezone}
@@ -260,49 +305,49 @@ const Sidebar = ({ current, daily, locationName, timezone, unit, setUnit, onLoca
                 />
             ) : null}
 
-            {/* ── Sun/Moon Arc ── */}
-            <div className="sun-arc-horizontal" style={{ width: '100%', height: '115px', position: 'relative', marginTop: 'auto', marginBottom: '16px', zIndex: 15, display: 'flex', justifyContent: 'center' }}>
-                <div style={{ width: '280px', height: '115px', position: 'relative' }}>
-                    <svg width="280" height="90" viewBox="0 0 280 90" style={{ opacity: 0.95, position: 'absolute', top: 0, left: 0 }}>
+            {/* ── Freshness ── */}
+            {fetchedAt && (
+                <div className={`freshness ${isStale ? 'stale' : ''}`}>
+                    <span>{refreshing ? 'Updating…' : `Updated ${formatAgo(fetchedAt, time.getTime())}`}</span>
+                    <button type="button" className="icon-btn-plain" onClick={refresh} aria-label="Refresh weather" disabled={refreshing}>
+                        <RotateCw size={13} className={refreshing ? 'spin' : ''} aria-hidden="true" />
+                    </button>
+                </div>
+            )}
+
+            {/* ── Sun/Moon arc ── */}
+            <div className="sun-arc-horizontal" role="img" aria-label={`${topLabel} ${topTime}, ${bottomLabel} ${bottomTime}`}>
+                <div className="sun-arc-inner">
+                    <svg width="280" height="90" viewBox="0 0 280 90" className="sun-arc-svg" aria-hidden="true">
                         <path d="M 20 80 A 120 60 0 0 1 260 80" fill="none" stroke="url(#hg)" strokeWidth="3.2" strokeLinecap="round" strokeDasharray="6 4" />
                         <defs>
                             <linearGradient id="hg" x1="0" y1="0" x2="1" y2="0">
-                                <stop offset="0%"   stopColor="var(--sun-arc-stroke)" stopOpacity="0.15" />
-                                <stop offset="50%"  stopColor="var(--sun-arc-stroke)" stopOpacity="1.0" />
-                                <stop offset="100%" stopColor="var(--sun-arc-stroke)" stopOpacity="0.15" />
+                                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.15" />
+                                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.7" />
+                                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.15" />
                             </linearGradient>
                         </defs>
                     </svg>
-                    {/* Glowing orb */}
-                    <div style={{
-                        position: 'absolute', left: `${sunX - 14}px`, top: `${sunY - 14}px`,
-                        width: '28px', height: '28px',
-                        background: isDaytime ? '#fbbf24' : 'var(--text-secondary)',
-                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: isDaytime 
-                            ? '0 0 18px rgba(251,191,36,0.9), 0 0 36px rgba(251,191,36,0.4)' 
-                            : 'var(--sun-orb-shadow)',
-                        transition: 'left 1s ease-out, top 1s ease-out',
-                        willChange: 'transform',
-                        zIndex: 10
-                    }}>
-                        {isDaytime ? <Sun size={15} color="#92400e" fill="#92400e" /> : <Moon size={15} color="#334155" fill="#334155" />}
+                    <div
+                        className={`sun-orb ${isDaytime ? 'day' : 'night'}`}
+                        style={{ left: `${sunX - 14}px`, top: `${sunY - 14}px` }}
+                        aria-hidden="true"
+                    >
+                        {isDaytime ? <Sun size={15} color="#7c2d12" fill="#7c2d12" /> : <Moon size={15} color="#000" fill="#000" />}
                     </div>
-                    {/* Sunrise Label */}
-                    <div style={{ position: 'absolute', bottom: '0', left: '20px', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '70px' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, color: 'var(--text-primary)' }}>{topLabel}</div>
-                        <div style={{ fontSize: '0.72rem', opacity: 0.55, color: 'var(--text-secondary)' }}>{topTime}</div>
+                    <div className="sun-label" style={{ left: '20px' }}>
+                        <div className="sun-label-title">{topLabel}</div>
+                        <div className="sun-label-time">{topTime}</div>
                     </div>
-                    {/* Sunset Label */}
-                    <div style={{ position: 'absolute', bottom: '0', left: '260px', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '70px' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, opacity: 0.85, color: 'var(--text-primary)' }}>{bottomLabel}</div>
-                        <div style={{ fontSize: '0.72rem', opacity: 0.55, color: 'var(--text-secondary)' }}>{bottomTime}</div>
+                    <div className="sun-label" style={{ left: '260px' }}>
+                        <div className="sun-label-title">{bottomLabel}</div>
+                        <div className="sun-label-time">{bottomTime}</div>
                     </div>
                 </div>
             </div>
 
-            <SkylineVector showNightBg={showNightBg} />
-        </motion.div>
+            <SkylineVector showNightBg={!isDay} />
+        </motion.aside>
     );
 };
 

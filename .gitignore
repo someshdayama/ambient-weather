@@ -26,3 +26,4 @@ dist-ssr
 # AI - personal/local files
 AI.local.md
 .ai/settings.local.json
+dev-dist

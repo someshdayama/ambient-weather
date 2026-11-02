@@ -1,14 +1,9 @@
 import React, { useRef, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CloudRain, CloudSnow, Sun, CloudSun, Cloud, CloudDrizzle, CloudLightning, Moon, CloudFog } from 'lucide-react';
+import { parseLocalTime as parseTime, formatClock, toTemp } from '../utils/weatherUtils';
+import { CloudRain, CloudSnow, Sun, CloudSun, Cloud, CloudDrizzle, CloudLightning, CloudFog } from 'lucide-react';
 
 const WeatherIcons = { 0: Sun, 1: Sun, 2: CloudSun, 3: Cloud, 45: CloudFog, 48: CloudFog, 51: CloudDrizzle, 53: CloudDrizzle, 55: CloudDrizzle, 61: CloudRain, 63: CloudRain, 65: CloudRain, 71: CloudSnow, 73: CloudSnow, 75: CloudSnow, 80: CloudRain, 81: CloudRain, 82: CloudLightning, 95: CloudLightning, 96: CloudLightning, 99: CloudLightning };
-
-/** Parse timestamp to local date milliseconds */
-const parseTime = (s) => {
-    const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+)/);
-    return m ? new Date(m[1], m[2] - 1, m[3], m[4], m[5]).getTime() : new Date(s).getTime();
-};
 
 // SVG layout constants (defined outside component to avoid recreation)
 const W = 860;
@@ -40,7 +35,7 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
     const [tooltip, setTooltip] = useState(null);
     const svgRef = useRef(null);
 
-    const toUnit = useCallback((c) => unit === 'F' ? Math.round((c * 9 / 5) + 32) : Math.round(c), [unit]);
+    const toUnit = useCallback((c) => toTemp(c, unit), [unit]);
 
     const currentMs = useMemo(() => parseTime(currentTime), [currentTime]);
     
@@ -99,8 +94,7 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
         const svgX = (relX / rect.width) * W;
         const idx = Math.round(((svgX - PAD_X) / chartW) * (temps.length - 1));
         const clamped = Math.max(0, Math.min(temps.length - 1, idx));
-        const date = new Date(parseTime(slice.time[clamped]));
-        const label = clamped === 0 ? 'Now' : date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+        const label = clamped === 0 ? 'Now' : formatClock(parseTime(slice.time[clamped]), { hour: 'numeric', hour12: true });
         setTooltip({
             x: points[clamped][0],
             y: points[clamped][1],
@@ -124,11 +118,10 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
                 {slice.time.filter((_, i) => i % 4 === 0).map((t, i) => {
                     const absI = i * 4;
                     const WeatherIcon = WeatherIcons[slice.code[absI]] || Sun;
-                    const date = new Date(parseTime(t));
-                    const label = absI === 0 ? 'Now' : date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+                    const label = absI === 0 ? 'Now' : formatClock(parseTime(t), { hour: 'numeric', hour12: true });
                     return (
                         <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '40px' }}>
-                            <WeatherIcon size={16} strokeWidth={1.5} style={{ opacity: 0.7 }} />
+                            <WeatherIcon size={16} strokeWidth={1.5} style={{ opacity: 0.7 }} aria-hidden="true" />
                             <span style={{ fontSize: '0.72rem', opacity: absI === 0 ? 1 : 0.55, fontWeight: absI === 0 ? 700 : 500 }}>{label}</span>
                         </div>
                     );
@@ -141,21 +134,24 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
                     ref={svgRef}
                     viewBox={`0 0 ${W} ${H}`}
                     style={{ width: '100%', height: 'auto', display: 'block', overflow: 'visible', cursor: 'crosshair' }}
-                    onMouseMove={handleMouseMove}
-                    onMouseLeave={handleMouseLeave}
+                    onPointerMove={handleMouseMove}
+                    onPointerDown={handleMouseMove}
+                    onPointerLeave={handleMouseLeave}
+                    role="img"
+                    aria-label={`Temperature next 24 hours: ${temps[0]}° now, high ${bounds.maxT}°, low ${bounds.minT}°`}
                 >
                     <defs>
                         <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%"   stopColor="var(--accent-color)" stopOpacity="0.6" />
-                            <stop offset="50%"  stopColor="var(--accent-color)" stopOpacity="1" />
-                            <stop offset="100%" stopColor="var(--chart-line-end)" stopOpacity="0.8" />
+                            <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.6" />
+                            <stop offset="50%"  stopColor="#ffffff" stopOpacity="1" />
+                            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.8" />
                         </linearGradient>
                         <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%"   stopColor="var(--accent-color)" stopOpacity="0.25" />
-                            <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
+                            <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.12" />
+                            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
                         </linearGradient>
                         <filter id="lineShadow">
-                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="var(--accent-color)" floodOpacity="0.5" />
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#ffffff" floodOpacity="0.5" />
                         </filter>
                     </defs>
 
@@ -189,13 +185,13 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
                             cx={x}
                             cy={y}
                             r="4"
-                            fill="var(--accent-color)"
-                            stroke="rgba(255,255,255,0.6)"
+                            fill="#ffffff"
+                            stroke="#000"
                             strokeWidth="1.5"
                             initial={{ scale: 0, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.8 + i * 0.05, type: 'spring', stiffness: 200 }}
-                            style={{ filter: 'drop-shadow(0 0 4px var(--accent-color))' }}
+                            style={{ filter: 'drop-shadow(0 0 4px #ffffff)' }}
                         />
                     ))}
 
@@ -236,9 +232,9 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
                             cy={tooltip.y}
                             r="5"
                             fill="white"
-                            stroke="var(--accent-color)"
+                            stroke="#ffffff"
                             strokeWidth="2"
-                            style={{ filter: 'drop-shadow(0 0 6px var(--accent-color))' }}
+                            style={{ filter: 'drop-shadow(0 0 6px #ffffff)' }}
                         />
                     )}
                 </svg>
@@ -255,7 +251,7 @@ const HourlyChart = ({ hourlyData, unit, currentTime }) => {
                     >
                         <span style={{ fontWeight: 700 }}>{tooltip.temp}°</span>
                         {tooltip.precip > 0 && (
-                            <span style={{ color: '#60a5fa', marginLeft: '6px' }}>💧 {tooltip.precip}%</span>
+                            <span style={{ marginLeft: '6px', opacity: 0.85 }}>💧 {tooltip.precip}%</span>
                         )}
                         <span style={{ opacity: 0.6, marginLeft: '6px', fontSize: '0.7rem' }}>{tooltip.label}</span>
                     </div>
