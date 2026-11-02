@@ -238,7 +238,7 @@ const Dashboard = ({ weatherData, unit, onLocationSelect, onGpsRequest, gpsState
                 <HourlyChart hourlyData={hourly} dailyData={daily} unit={unit} currentTime={current.time} />
             </section>
 
-            <WeekForecast daily={daily} unit={unit} currentTemp={current.temperature_2m} />
+            <WeekForecast daily={daily} unit={unit} />
 
             <div className="hero-cards">
                 <AqiCard aqi={aqi} aqiHourly={aqiHourly} nowMs={nowMs} />

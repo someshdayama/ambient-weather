@@ -1,14 +1,11 @@
 import { Droplet } from 'lucide-react';
 import WeatherIcon from './WeatherIcon';
-import { formatDay, getShortCondition, getWeekRange, getWeekSummary, rangeBar, scalePct, toTemp } from '../utils/weatherUtils';
+import { formatDay, getShortCondition, getWeekSummary, toTemp } from '../utils/weatherUtils';
 
 const RAIN_MIN = 30;
 
-/**
- * 7-day list. Every row shares one temperature scale (coolest low → warmest high of the week),
- * so a bar further right is a warmer day. Today carries a dot for the current temperature.
- */
-const WeekForecast = ({ daily, unit, currentTemp }) => {
+/** 7-day forecast as seven equal columns (day, icon, condition, high, low, rain). */
+const WeekForecast = ({ daily, unit }) => {
     if (!daily?.time?.length) return null;
 
     const days = daily.time.slice(0, 7).map((date, i) => ({
@@ -19,8 +16,6 @@ const WeekForecast = ({ daily, unit, currentTemp }) => {
         rain: daily.precipitation_probability_max?.[i] ?? 0,
         code: daily.weather_code[i],
     }));
-    const { min, max } = getWeekRange(days.map((d) => d.low), days.map((d) => d.high));
-    const nowTemp = toTemp(currentTemp, unit);
 
     return (
         <section className="glass-panel card week" aria-labelledby="week-title">
@@ -29,51 +24,35 @@ const WeekForecast = ({ daily, unit, currentTemp }) => {
             </div>
             <p className="week-summary">{getWeekSummary(days)}</p>
 
-            <div className="week-legend" aria-hidden="true">
-                <span />
-                <span className="week-legend-rain">Rain</span>
-                <span className="week-legend-temp">Low <span className="week-legend-line" /> High</span>
-            </div>
-
-            <ol className="week-list">
+            <ol className="week-cols">
                 {days.map((d, i) => {
-                    const bar = rangeBar(d.low, d.high, min, max);
                     const condition = getShortCondition(d.code);
                     const showRain = d.rain >= RAIN_MIN;
                     return (
                         <li
                             key={d.date}
-                            className={`week-row ${i === 0 ? 'today' : ''}`}
-                            aria-label={`${d.label}: ${condition}, low ${d.low}°, high ${d.high}°${showRain ? `, ${d.rain}% chance of rain` : ''}`}
+                            className={`week-col ${i === 0 ? 'today' : ''}`}
+                            aria-label={`${d.label}: ${condition}, high ${d.high}°, low ${d.low}°${showRain ? `, ${d.rain}% chance of rain` : ''}`}
                         >
-                            <div className="week-day">
-                                <span className="week-day-name">{d.label}</span>
-                                <span className="week-day-cond">{condition}</span>
-                            </div>
-                            <WeatherIcon code={d.code} isDay={1} size={24} strokeWidth={1.5} className="week-icon" />
-                            <div className={`week-rain ${showRain ? '' : 'empty'}`}>
-                                {showRain && (
+                            <span className="week-col-day">{d.label}</span>
+                            <WeatherIcon code={d.code} isDay={1} size={26} strokeWidth={1.5} className="week-col-icon" />
+                            <span className="week-col-cond">{condition}</span>
+                            <span className="week-col-high">{d.high}°</span>
+                            <span className="week-col-low">{d.low}°</span>
+                            <span className="week-col-rain">
+                                {showRain ? (
                                     <>
-                                        <Droplet size={14} aria-hidden="true" />
+                                        <Droplet size={12} aria-hidden="true" />
                                         {d.rain}%
                                     </>
+                                ) : (
+                                    '\u00a0'
                                 )}
-                            </div>
-                            <div className="week-range">
-                                <span className="week-low">{d.low}°</span>
-                                <div className="week-track">
-                                    <div className="week-bar" style={{ left: `${bar.left}%`, width: `${bar.width}%` }} />
-                                    {i === 0 && Number.isFinite(nowTemp) && (
-                                        <div className="week-now" style={{ left: `${scalePct(nowTemp, min, max)}%` }} title={`Now ${nowTemp}°`} />
-                                    )}
-                                </div>
-                                <span className="week-high">{d.high}°</span>
-                            </div>
+                            </span>
                         </li>
                     );
                 })}
             </ol>
-            <p className="week-foot t-secondary">Bars share one scale from {min}° to {max}°. The dot on today is the temperature now.</p>
         </section>
     );
 };

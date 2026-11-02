@@ -214,30 +214,6 @@ export const getShortCondition = (code) => {
 };
 
 // ── 7-day range bar ──────────────────────────────────────────────────────────
-/** Week-wide min/max over the given lows/highs (ignores nulls). */
-export const getWeekRange = (lows = [], highs = []) => {
-    const vals = [...lows, ...highs].filter((v) => v != null && Number.isFinite(v));
-    if (!vals.length) return { min: 0, max: 0 };
-    return { min: Math.min(...vals), max: Math.max(...vals) };
-};
-
-/** Position of a value on the week scale, 0–100 (%). */
-export const scalePct = (value, min, max) => {
-    if (!Number.isFinite(value)) return 0;
-    const span = max - min;
-    if (span <= 0) return 50;
-    return Math.max(0, Math.min(100, ((value - min) / span) * 100));
-};
-
-/** { left, width } in % for a low→high bar on the week scale. Always at least 4% wide. */
-export const rangeBar = (low, high, min, max) => {
-    const left = scalePct(low, min, max);
-    const right = scalePct(high, min, max);
-    const width = Math.max(4, right - left);
-    return { left: Math.min(left, 100 - width), width };
-};
-
-// ── Plain-language explanations ──────────────────────────────────────────────
 /** Rain chance for the rest of today, from hourly data: "Mostly after 6 PM", etc. */
 export const getRainSummary = (hourly, nowMs, dailyMax = null) => {
     const times = hourly?.time;

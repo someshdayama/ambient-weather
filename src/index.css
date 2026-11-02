@@ -263,37 +263,25 @@ strong { font-weight: var(--w-bold); }
   background: #000; border: 1px solid var(--line-strong); border-radius: 10px;
 }
 
-/* 7-day */
+/* 7-day: seven equal columns */
 .week-summary { font-size: var(--fs-14); margin: -4px 0 14px; }
-.week-legend, .week-row {
-  display: grid;
-  grid-template-columns: minmax(84px, 1.1fr) 28px 56px minmax(150px, 2.4fr);
-  align-items: center; column-gap: 12px;
+.week-cols { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.week-col {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 8px; padding: 14px 4px; border-radius: 16px; min-width: 0;
 }
-.week-legend { font-size: var(--fs-12); color: var(--text-2); padding: 0 12px 6px; }
-.week-legend-rain { grid-column: 3; text-align: right; }
-.week-legend-temp { grid-column: 4; display: flex; align-items: center; gap: 8px; }
-.week-legend-line { flex: 1; height: 1px; background: var(--line-strong); }
-@media (min-width: 1025px) {
-  .week-legend, .week-row { grid-template-columns: 150px 32px 72px minmax(0, 1fr); column-gap: 16px; }
-  .week-range { gap: 14px; }
+.week-col.today { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.week-col-day { font-size: var(--fs-14); }
+.week-col.today .week-col-day { font-weight: var(--w-bold); }
+.week-col-icon { margin: 2px 0; }
+.week-col-cond {
+  font-size: var(--fs-12); color: var(--text-2); line-height: 1.2;
+  min-height: 2.4em; display: flex; align-items: flex-start; justify-content: center;
+  overflow-wrap: anywhere; hyphens: auto;
 }
-.week-list { display: flex; flex-direction: column; }
-.week-row { min-height: 56px; padding: 6px 12px; border-top: 1px solid var(--line); }
-.week-row.today { background: var(--surface-2); border-radius: 14px; border-top-color: transparent; }
-.week-row.today + .week-row { border-top-color: transparent; }
-.week-day { display: flex; flex-direction: column; line-height: 1.25; }
-.week-day-name { font-size: var(--fs-17); }
-.week-row.today .week-day-name { font-weight: var(--w-bold); }
-.week-day-cond { font-size: var(--fs-12); color: var(--text-2); }
-.week-rain { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: var(--fs-14); }
-.week-range { display: flex; align-items: center; gap: 10px; font-size: var(--fs-17); font-variant-numeric: tabular-nums; }
-.week-low { width: 34px; text-align: right; color: var(--text-2); }
-.week-high { width: 34px; font-weight: var(--w-bold); }
-.week-track { position: relative; flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
-.week-bar { position: absolute; top: 0; height: 100%; border-radius: 3px; background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), #ffffff); }
-.week-now { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; border: 2px solid #000; box-shadow: 0 0 0 1px #fff; }
-.week-foot { font-size: var(--fs-12); margin-top: 12px; }
+.week-col-high { font-size: var(--fs-22); font-weight: var(--w-regular); line-height: 1; font-variant-numeric: tabular-nums; }
+.week-col-low { font-size: var(--fs-17); color: var(--text-2); line-height: 1; font-variant-numeric: tabular-nums; }
+.week-col-rain { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-12); min-height: 16px; white-space: nowrap; }
 
 /* Hero cards: always 3 across on desktop (no orphan), stacked on phone */
 .hero-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
@@ -416,19 +404,14 @@ strong { font-weight: var(--w-bold); }
   .dashboard-container { padding: 8px 12px 28px; }
   .card { padding: 18px 16px; }
   .details-row { grid-template-columns: 1fr; }
-  .week-legend, .week-row { grid-template-columns: minmax(78px, 1fr) 24px 48px minmax(120px, 2fr); column-gap: 8px; }
-  .week-row { padding: 6px 8px; }
-  .week-legend { padding: 0 8px 6px; }
-  .week-low, .week-high { width: 30px; }
-  .week-range { gap: 8px; }
+  .week-cols { gap: 2px; margin: 0 -8px; }
+  .week-col { padding: 12px 2px; gap: 7px; }
+  .week-col-high { font-size: var(--fs-17); font-weight: var(--w-bold); }
+  .week-col-low { font-size: var(--fs-14); }
   .map-shell { height: 320px; }
   .map-chip { padding: 0 11px; }
 }
 
-@media (max-width: 360px) {
-  .week-legend, .week-row { grid-template-columns: minmax(70px, 1fr) 0 44px minmax(110px, 2fr); }
-  .week-icon { display: none; }
-}
 
 /* ─── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
