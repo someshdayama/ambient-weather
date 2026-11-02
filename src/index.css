@@ -313,10 +313,13 @@ strong { font-weight: var(--w-bold); }
 .map-section { margin-top: 8px; }
 .map-shell { width: 100%; height: 380px; border-radius: var(--radius); overflow: hidden; position: relative; border: 1px solid var(--line); background: #000; }
 .leaflet-container { background: #000; font-family: var(--font); }
-/* Esri "Dark Gray" is mid-grey: push it to near-black. Labels stay readable. */
-.tiles-base-dark { filter: brightness(0.45) contrast(1.25) saturate(0); }
+/* Esri "Dark Gray": a touch more contrast so water reads near-black and land/roads stay clearly visible. */
+.tiles-base-dark { filter: brightness(0.95) contrast(1.15) saturate(0); }
 .tiles-labels { filter: brightness(1.1) saturate(0); }
 .tiles-sat { filter: brightness(0.8); }
+/* Leaflet 1.9.4 sets mix-blend-mode: plus-lighter on tiles; at fractional DPR (e.g. 2.625) that draws a bright
+   hairline at tile edges. Normal blending removes it. */
+.map-shell .leaflet-container img.leaflet-tile { mix-blend-mode: normal; }
 /* Note: do NOT enlarge tiles to "hide seams" — at DPR 2.625 that hack itself draws grey lines. */
 
 .map-controls {
